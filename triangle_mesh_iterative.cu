@@ -53,9 +53,9 @@ RT_PROGRAM void mesh_intersect( int primIdx )
 {
   int3 v_idx = vindex_buffer[primIdx];
 
-  float3 p0 = vertex_buffer[ v_idx.x ];
-  float3 p1 = vertex_buffer[ v_idx.y ];
-  float3 p2 = vertex_buffer[ v_idx.z ];
+  float3 p0 = vertex_buffer[ v_idx.x ] + something;
+  float3 p1 = vertex_buffer[ v_idx.y ] + something;
+  float3 p2 = vertex_buffer[ v_idx.z ] + something;
 
   // Intersect ray with triangle
   float3 n;

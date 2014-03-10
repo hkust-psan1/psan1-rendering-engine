@@ -41,6 +41,8 @@
 #include "commonStructs.h"
 #include <string.h>
 
+#include <btBulletDynamicsCommon.h>
+
 using namespace optix;
 
 //------------------------------------------------------------------------------
@@ -392,14 +394,14 @@ void GlassScene::createMaterials( Material material[] )
   // Checkerboard to aid positioning, not used in final setup.
   makeMaterialPrograms(material[1], "checkerboard.cu", "closest_hit_radiance", "any_hit_shadow");
   
-  material[1]["ka" ]->setFloat( 0.4f, 0.4f, 0.4f );
+  material[1]["ka" ]->setFloat( 0.6f, 0.6f, 0.6f );
   material[1]["ks" ]->setFloat( 0.5f, 0.5f, 0.5f );
-  material[1]["kr" ]->setFloat( 0.3f, 0.3f, 0.3f );
+  material[1]["kr" ]->setFloat( 0.0f, 0.0f, 0.0f );
   material[1]["ns" ]->setInt( 64 );
   material[1]["importance_cutoff"  ]->setFloat( 0.01f );
   material[1]["cutoff_color"       ]->setFloat( 0.2f, 0.2f, 0.2f );
   material[1]["reflection_maxdepth"]->setInt( 5 );
-  material[1]["kd_map"]->setTextureSampler( loadTexture( m_context, "D:\\OptiX SDK 3.0.1\\SDK - Copy\\glass\\bowling.ppm", make_float3(1, 1, 1)) );
+  material[1]["kd_map"]->setTextureSampler( loadTexture( m_context, "D:\\OptiX SDK 3.0.1\\SDK - Copy\\glass\\pin-diffuse.ppm", make_float3(1, 1, 1)) );
 
   makeMaterialPrograms(material[2], "checkerboard.cu", "closest_hit_radiance", "any_hit_shadow");
   
@@ -509,9 +511,11 @@ void GlassScene::createGeometry( Material material[], const std::string& path )
   ObjLoader** objloader = new ObjLoader*[10];
   for(int i = 0; i < 10; i++)
   {
-	  objloader[i] = new ObjLoader( (path + "/bowling-pin.obj").c_str(), m_context, geomgroup[i], material[1] );
+	  objloader[i] = new ObjLoader( (path + "/pin.obj").c_str(), m_context, geomgroup[i], material[1] );
 	  objloader[i]->setIntersectProgram( mesh_intersect );
 	  objloader[i]->load( m[i] );
+	  Geometry pin = geomgroup[i]->getChild(0)->getGeometry();
+	  // pin["something"]->setFloat(0, 0, 0);
   }
 
   float matrixFloor[] = 
@@ -524,6 +528,9 @@ void GlassScene::createGeometry( Material material[], const std::string& path )
   floorObj.setIntersectProgram( mesh_intersect );
   floorObj.load(mFloor);
 
+	Geometry floor = geomgroup[10]->getChild(0)->getGeometry();
+	// floor["something"]->setFloat(10, 10, 10);
+
     float matrixBall[] = 
 	{ 3,  0,  0,  20, 
      0,  3,  0,  0, 
@@ -533,6 +540,9 @@ void GlassScene::createGeometry( Material material[], const std::string& path )
   ObjLoader ballObj( (path + "/bowling-ball.obj").c_str(), m_context, geomgroup[11], material[2] );
   ballObj.setIntersectProgram( mesh_intersect );
   ballObj.load(mBall);
+  Geometry ball = geomgroup[11]->getChild(0)->getGeometry();
+  // ball["something"]->setFloat(0, 0, 0);
+
 
   /*
   Geometry table = m_context->createGeometry();
@@ -601,6 +611,7 @@ void printUsageAndExit( const std::string& argv0, bool doExit = true )
 
 int main(int argc, char* argv[])
 {
+	// btDbvtBroadphase* bp = new btDbvtBroadphase();
   GLUTDisplay::init( argc, argv );
 
   bool adaptive_aa = true;  // Default to true for now
