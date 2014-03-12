@@ -41,7 +41,7 @@
 #include "commonStructs.h"
 #include <string.h>
 
-#include <btBulletDynamicsCommon.h>
+#include "bowling_pin.h"
 
 using namespace optix;
 
@@ -85,6 +85,8 @@ public:
   bool keyPressed(unsigned char key, int x, int y);
 
 private:
+	void initObjects(const std::string& path);
+
   void createContext( SampleScene::InitialCameraData& camera_data );
   void createMaterials(Material material[] );
   void createGeometry( Material material[], const std::string& path );
@@ -115,6 +117,11 @@ private:
 
   static unsigned int WIDTH;
   static unsigned int HEIGHT;
+
+  btDiscreteDynamicsWorld* world;
+
+  BowlingPin* pin;
+  GroundPlane* groundPlane;
 };
 
 unsigned int GlassScene::WIDTH  = 512u;
@@ -134,7 +141,9 @@ void GlassScene::initScene( InitialCameraData& camera_data )
     optix::Material material[3];
     createContext( camera_data );
     createMaterials( material );
-    createGeometry( material, m_obj_path );
+    // createGeometry( material, m_obj_path );
+
+	initObjects(m_obj_path);
 
     m_context->validate();
     m_context->compile();
@@ -154,6 +163,33 @@ Buffer GlassScene::getOutputBuffer()
 
 void GlassScene::trace( const RayGenCameraData& camera_data )
 {
+	world->stepSimulation(1 / 300.f, 10);
+
+	pin->step();
+	groundPlane->step();
+
+	/*
+	btTransform trans;
+	pin->getRigidBody()->getMotionState()->getWorldTransform(trans);
+
+	Transform optixTrans = pin->getTransform();
+
+	// printf("y: %.3f\n", trans.getOrigin().getY());
+
+	float m[] = {
+		1, 0, 0, trans.getOrigin().getX(),
+		0, 1, 0, trans.getOrigin().getY(),
+		0, 0, 1, trans.getOrigin().getZ(),
+		0, 0, 0, 1
+	};
+
+	// Matrix4x4 tMatrix(m);
+	optixTrans->setMatrix(false, m, NULL);
+	Acceleration acc = optixTrans->getChild<GeometryGroup>()->getAcceleration();
+	*/
+	// acc->markDirty();
+
+
   if ( m_camera_changed ) 
   {
     m_frame_number = 0u;
@@ -416,13 +452,45 @@ void GlassScene::createMaterials( Material material[] )
 
 }
 
+void GlassScene::initObjects(const std::string& res_path) {
+	std::string mesh_path = ptxpath( "glass", "triangle_mesh_iterative.cu" );
+	std::string mat_path = ptxpath("glass", "checkerboard.cu");
+
+	pin = new BowlingPin(m_context);
+	pin->initGraphics(mesh_path, mat_path, res_path);
+	pin->initPhysics(res_path);
+
+	groundPlane = new GroundPlane(m_context);
+	groundPlane->initGraphics(mesh_path, mat_path, res_path);
+	groundPlane->initPhysics(res_path);
+
+	btDbvtBroadphase* broadPhase = new btDbvtBroadphase();
+
+	btDefaultCollisionConfiguration* collisionConfiguration = new btDefaultCollisionConfiguration();
+	btCollisionDispatcher* dispatcher = new btCollisionDispatcher(collisionConfiguration);
+
+	btSequentialImpulseConstraintSolver* solver = new btSequentialImpulseConstraintSolver;
+
+	world = new btDiscreteDynamicsWorld(dispatcher, broadPhase, solver, collisionConfiguration);
+	world->addRigidBody(pin->getRigidBody());
+	world->addRigidBody(groundPlane->getRigidBody());
+
+	Group g = m_context->createGroup();
+	g->setChildCount(2);
+	g->setChild<Transform>(0, pin->getTransform());
+	g->setChild<Transform>(1, groundPlane->getTransform());
+
+	g->setAcceleration(m_context->createAcceleration("Bvh", "Bvh"));
+
+	m_context["top_object"]->set(g);
+	m_context["top_shadower"]->set(g);
+}
 
 void GlassScene::createGeometry( Material material[], const std::string& path )
 {
   // Load OBJ files and set as geometry groups
-  GeometryGroup geomgroup[12] =
+  GeometryGroup geomgroup[11] =
   { m_context->createGeometryGroup(),
-    m_context->createGeometryGroup(),
     m_context->createGeometryGroup(),
     m_context->createGeometryGroup(),
 	m_context->createGeometryGroup(),
@@ -502,7 +570,31 @@ void GlassScene::createGeometry( Material material[], const std::string& path )
 
   // changed, use .cu file instead of compiled .ptx file
   std::string         mesh_path = ptxpath( "glass", "triangle_mesh_iterative.cu" );
+  std::string         mat_path = ptxpath( "glass", "checkerboard.cu" );
   // std::string prog_path = std::string(sutilSamplesPtxDir()) + "/glass_generated_triangle_mesh_iterative.cu.ptx";
+
+  BowlingPin* pin = new BowlingPin(m_context);
+  pin->initGraphics(mesh_path, mat_path, path);
+  pin->initPhysics(path);
+
+  btDbvtBroadphase* broadPhase = new btDbvtBroadphase();
+
+	btDefaultCollisionConfiguration* collisionConfiguration = new btDefaultCollisionConfiguration();
+	btCollisionDispatcher* dispatcher = new btCollisionDispatcher(collisionConfiguration);
+
+	btSequentialImpulseConstraintSolver* solver = new btSequentialImpulseConstraintSolver;
+
+	btDiscreteDynamicsWorld* world = new btDiscreteDynamicsWorld(dispatcher, broadPhase, solver, collisionConfiguration);
+	world->addRigidBody(pin->getRigidBody());
+
+	for (int i = 0; i < 10; i++) {
+		world->stepSimulation(1 / 60.0f, 10);
+
+		btTransform trans;
+		pin->getRigidBody()->getMotionState()->getWorldTransform(trans);
+
+		printf("%.3f\n", trans.getOrigin().getY());
+	}
 
   Program mesh_intersect = m_context->createProgramFromPTXFile( mesh_path, "mesh_intersect" );
 
@@ -530,6 +622,12 @@ void GlassScene::createGeometry( Material material[], const std::string& path )
 
 	Geometry floor = geomgroup[10]->getChild(0)->getGeometry();
 	// floor["something"]->setFloat(10, 10, 10);
+	float anotherTransformation[] = {
+	 1,  0,  0,  0, 
+     0,  1,  0,  0, 
+     0,  0,  1, 0, 
+     0,  0,  0,  1
+	};
 
     float matrixBall[] = 
 	{ 3,  0,  0,  20, 
@@ -537,12 +635,20 @@ void GlassScene::createGeometry( Material material[], const std::string& path )
      0,  0,  3, 0, 
      0,  0,  0,  1 };
   optix::Matrix4x4 mBall(matrixBall);
-  ObjLoader ballObj( (path + "/bowling-ball.obj").c_str(), m_context, geomgroup[11], material[2] );
+
+  GeometryGroup ballGroup = m_context->createGeometryGroup();
+
+  ObjLoader ballObj( (path + "/bowling-ball.obj").c_str(), m_context, ballGroup, material[2] );
   ballObj.setIntersectProgram( mesh_intersect );
   ballObj.load(mBall);
-  Geometry ball = geomgroup[11]->getChild(0)->getGeometry();
-  // ball["something"]->setFloat(0, 0, 0);
 
+  Transform t = m_context->createTransform();
+  t->setMatrix(false, anotherTransformation, NULL);
+  t->setChild(ballGroup);
+
+  // Geometry ball = ballGroup->getChild(0)->getGeometry();
+
+  // ball["something"]->setFloat(0, 0, 0);
 
   /*
   Geometry table = m_context->createGeometry();
@@ -557,15 +663,32 @@ void GlassScene::createGeometry( Material material[], const std::string& path )
   */
 
   GeometryGroup maingroup = m_context->createGeometryGroup();
+
+  Group g = m_context->createGroup();
+  g->setChildCount(2);
+  g->setChild<Transform>(0, t);
+  // g->setChild<GeometryGroup>(0, ballGroup);
+
+  g->setAcceleration(m_context->createAcceleration("Bvh", "Bvh"));
+  m_context["top_object"]->set(g);
+  m_context["top_shadower"]->set(g);
+
+  g->setChild<Transform>(1, pin->getTransform());
+
+  /*
   maingroup->setChildCount( 12 );
-  for(int i = 0; i < 12; i++)
+  for(int i = 0; i < 11; i++)
   {
 	maingroup->setChild( i, geomgroup[i]->getChild(0) );
   }
+  // maingroup->setChild(11, ballGroup->getChild(0));
+  // maingroup->setChild(11, t->getChild<GeometryGroup>()->getChild(0));
+  maingroup->setChild(11, t);
 
   maingroup->setAcceleration( m_context->createAcceleration("Bvh","Bvh") );
   m_context["top_object"]->set( maingroup );
   m_context["top_shadower"]->set( maingroup );
+  */
 }
 
 

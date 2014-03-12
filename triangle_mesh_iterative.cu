@@ -46,16 +46,15 @@ rtDeclareVariable(float3, geometric_normal, attribute geometric_normal, );
 rtDeclareVariable(float3, shading_normal, attribute shading_normal, ); 
 
 rtDeclareVariable(optix::Ray, ray, rtCurrentRay, );
-rtDeclareVariable(float3, something, , );
 
 
 RT_PROGRAM void mesh_intersect( int primIdx )
 {
   int3 v_idx = vindex_buffer[primIdx];
 
-  float3 p0 = vertex_buffer[ v_idx.x ] + something;
-  float3 p1 = vertex_buffer[ v_idx.y ] + something;
-  float3 p2 = vertex_buffer[ v_idx.z ] + something;
+  float3 p0 = vertex_buffer[ v_idx.x ];
+  float3 p1 = vertex_buffer[ v_idx.y ];
+  float3 p2 = vertex_buffer[ v_idx.z ];
 
   // Intersect ray with triangle
   float3 n;
