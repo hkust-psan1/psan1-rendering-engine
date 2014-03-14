@@ -53,10 +53,10 @@ rtDeclareVariable(float3, texcoord, attribute texcoord, );
 rtDeclareVariable(float3,       cutoff_color, , );
 rtDeclareVariable(int,          reflection_maxdepth, , );
 rtDeclareVariable(float,        importance_cutoff, , );
+rtDeclareVariable(float4, jitter, , );
 
 
-
-rtBuffer<BasicLight> lights;
+rtBuffer<AreaLight> lights;
 
 struct PerRayData_radiance
 {
@@ -112,13 +112,17 @@ RT_PROGRAM void closest_hit_radiance()
   float reflection = 1.0f;
     
   float3 color = cutoff_color;
+  float3 rand = make_float3(jitter.x - 1, jitter.y - 1, jitter.z - 1);
+  rand = 32767 * fhp * rand;
+  fmod(rand);
   
   unsigned int num_lights = lights.size();
   for(int i = 0; i < num_lights; i++) 
   {
-	BasicLight light = lights[i];
-	float Ldist = length(light.pos - fhp);
-    float3 L = normalize(light.pos - fhp);
+	AreaLight light = lights[i];
+	float3 pos = light.pos + light.radius * rand;
+	float Ldist = length(pos - fhp);
+    float3 L = normalize(pos - fhp);
 	float3 H = normalize(L - ray.direction);
 	float nDl = dot(N, L);
 

@@ -304,40 +304,15 @@ void  BowlingScene::createContext( InitialCameraData& camera_data )
 
   
   // Setup lighting
-  BasicLight lights[] = 
+  AreaLight lights[] = 
   { 
-    { make_float3( -30.0f,  20.0f, -80.0f ), make_float3( 0.6f, 0.5f, 0.4f ), 1 },
-    { make_float3( -30.0f,  -20.0f, -80.0f ), make_float3( 0.6f, 0.5f, 0.4f ), 1 },
-    { make_float3(  10.5f,  30.0f, 20.5f ), make_float3( 0.65f, 0.65f, 0.6f ), 1 }
-    /*{ make_float3(  10.5f,  30.0f, 20.4f ), make_float3( 0.025f, 0.025f, 0.027f ), 1 },
-    { make_float3(  10.5f,  30.0f, 20.3f ), make_float3( 0.025f, 0.025f, 0.027f ), 1 },
-    { make_float3(  10.5f,  30.0f, 20.2f ), make_float3( 0.025f, 0.025f, 0.027f ), 1 },
-    { make_float3(  10.5f,  30.0f, 20.1f ), make_float3( 0.025f, 0.025f, 0.027f ), 1 },
-    { make_float3(  10.4f,  30.0f, 20.5f ), make_float3( 0.025f, 0.025f, 0.027f ), 1 },
-    { make_float3(  10.4f,  30.0f, 20.4f ), make_float3( 0.025f, 0.025f, 0.027f ), 1 },
-    { make_float3(  10.4f,  30.0f, 20.3f ), make_float3( 0.025f, 0.025f, 0.027f ), 1 },
-    { make_float3(  10.4f,  30.0f, 20.2f ), make_float3( 0.025f, 0.025f, 0.027f ), 1 },
-    { make_float3(  10.4f,  30.0f, 20.1f ), make_float3( 0.025f, 0.025f, 0.027f ), 1 },
-    { make_float3(  10.3f,  30.0f, 20.5f ), make_float3( 0.025f, 0.025f, 0.027f ), 1 },
-    { make_float3(  10.3f,  30.0f, 20.4f ), make_float3( 0.025f, 0.025f, 0.027f ), 1 },
-    { make_float3(  10.3f,  30.0f, 20.3f ), make_float3( 0.025f, 0.025f, 0.027f ), 1 },
-    { make_float3(  10.3f,  30.0f, 20.2f ), make_float3( 0.025f, 0.025f, 0.027f ), 1 },
-    { make_float3(  10.3f,  30.0f, 20.1f ), make_float3( 0.025f, 0.025f, 0.027f ), 1 },
-    { make_float3(  10.2f,  30.0f, 20.5f ), make_float3( 0.025f, 0.025f, 0.027f ), 1 },
-    { make_float3(  10.2f,  30.0f, 20.4f ), make_float3( 0.025f, 0.025f, 0.027f ), 1 },
-    { make_float3(  10.2f,  30.0f, 20.3f ), make_float3( 0.025f, 0.025f, 0.027f ), 1 },
-    { make_float3(  10.2f,  30.0f, 20.2f ), make_float3( 0.025f, 0.025f, 0.027f ), 1 },
-    { make_float3(  10.2f,  30.0f, 20.1f ), make_float3( 0.025f, 0.025f, 0.027f ), 1 },
-    { make_float3(  10.1f,  30.0f, 20.5f ), make_float3( 0.025f, 0.025f, 0.027f ), 1 },
-    { make_float3(  10.1f,  30.0f, 20.4f ), make_float3( 0.025f, 0.025f, 0.027f ), 1 },
-    { make_float3(  10.1f,  30.0f, 20.3f ), make_float3( 0.025f, 0.025f, 0.027f ), 1 },
-    { make_float3(  10.1f,  30.0f, 20.2f ), make_float3( 0.025f, 0.025f, 0.027f ), 1 },
-    { make_float3(  10.1f,  30.0f, 20.1f ), make_float3( 0.025f, 0.025f, 0.027f ), 1 }*/
+    { make_float3( -30.0f,  20.0f, -80.0f ), make_float3( 0.6f, 0.5f, 0.4f ), 1.5f },
+    { make_float3(  10.5f,  30.0f, 20.5f ), make_float3( 0.65f, 0.65f, 0.6f ), 1.5f }
   };
 
   Buffer light_buffer = m_context->createBuffer(RT_BUFFER_INPUT);
   light_buffer->setFormat(RT_FORMAT_USER);
-  light_buffer->setElementSize(sizeof(BasicLight));
+  light_buffer->setElementSize(sizeof(AreaLight));
   light_buffer->setSize( sizeof(lights)/sizeof(lights[0]) );
   memcpy(light_buffer->map(), lights, sizeof(lights));
   light_buffer->unmap();

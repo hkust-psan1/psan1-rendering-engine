@@ -44,3 +44,14 @@ struct TriangleLight
   float3 emission;
 };
 
+struct AreaLight
+{
+#if defined(__cplusplus)
+  typedef optix::float3 float3;
+#endif
+  float3 pos;
+  float3 color;
+  float radius;
+  int padding;
+};
+

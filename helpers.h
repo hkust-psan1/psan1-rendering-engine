@@ -234,3 +234,9 @@ static __host__ __device__ __inline__ optix::float3 tonemap( const optix::float3
   return mapped_rgb;
 }
 
+static __host__ __device__ __inline__ void fmod(optix::float3 &f)
+{
+	f.x = fmod(f.x, 1.0f);
+	f.y = fmod(f.y, 1.0f);
+	f.z = fmod(f.z, 1.0f);
+}
