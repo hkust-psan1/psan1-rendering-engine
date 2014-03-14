@@ -24,18 +24,19 @@ if(GLUT_FOUND AND OPENGL_FOUND)
   add_definitions(-DGLUT_FOUND -DGLUT_NO_LIB_PRAGMA)
 
   # See top level CMakeLists.txt file for documentation of OPTIX_add_sample_executable.
-  OPTIX_add_sample_executable( glass
-    glass.cpp
+  OPTIX_add_sample_executable( tracer
+    tracer.cpp
 
     # These files are common among multiple samples
     adaptive_pinhole_camera.cu
-    checkerboard.cu
-    glass.cu
+    phong.cu
     gradientbg.cu
     helpers.h
     intersection_refinement.h
-    pinhole_camera.cu
+    dof_camera.cu
     random.h
+    commonStructs.h
+    bowling_pin.h
     triangle_mesh_iterative.cu
     )
 

@@ -21,7 +21,7 @@
 
 //------------------------------------------------------------------------------
 //
-//  A glass shader example.
+//  Bowling Game!
 //
 //------------------------------------------------------------------------------
 
@@ -30,6 +30,7 @@
 #include <optixu/optixu_math_namespace.h>
 #include <optixu/optixu_matrix_namespace.h>
 #include "random.h"
+#include "commonStructs.h"
 
 #include <ImageLoader.h>
 #include <GLUTDisplay.h>
@@ -38,16 +39,15 @@
 #include <string>
 #include <iostream>
 #include <stdlib.h>
-#include "commonStructs.h"
 #include <string.h>
 
-#include "bowling_pin.h"
+//#include "bowling_pin.h"
 
 using namespace optix;
 
 //------------------------------------------------------------------------------
 //
-//  Glass scene 
+//  Bowling scene 
 //
 //------------------------------------------------------------------------------
 
@@ -71,11 +71,11 @@ inline float4 random4()
   return make_float4( random1(), random1(), random1(), random1() );
 }
 
-class GlassScene : public SampleScene
+class BowlingScene : public SampleScene
 {
 public:
-  GlassScene( const std::string& obj_path, bool aaa, bool gg ) 
-    : SampleScene(), m_obj_path( obj_path ), m_frame_number( 0u ), m_adaptive_aa( aaa ), m_green_glass( gg ) {}
+  BowlingScene( const std::string& obj_path) 
+    : SampleScene(), m_obj_path( obj_path ), m_frame_number( 0u ){}
 
   // From SampleScene
   void   initScene( InitialCameraData& camera_data );
@@ -96,6 +96,7 @@ private:
                                                 const char *ch_program_name,
                                                 const char *ah_program_name );
 
+
   int getEntryPoint() { return m_adaptive_aa ? AdaptivePinhole: DOF; }
   void genRndSeeds(unsigned int width, unsigned int height);
 
@@ -110,40 +111,39 @@ private:
   Buffer        m_rnd_seeds;
   std::string   m_obj_path;
   unsigned int  m_frame_number;
-  bool          m_adaptive_aa;
-  bool          m_green_glass;
 
   float distance_offset;
 
   static unsigned int WIDTH;
   static unsigned int HEIGHT;
+  bool          m_adaptive_aa;
 
-  btDiscreteDynamicsWorld* world;
+  //btDiscreteDynamicsWorld* world;
 
-  BowlingPin* pin;
-  GroundPlane* groundPlane;
+  //BowlingPin* pin;
+  //GroundPlane* groundPlane;
 };
 
-unsigned int GlassScene::WIDTH  = 512u;
-unsigned int GlassScene::HEIGHT = 384u;
+unsigned int BowlingScene::WIDTH  = 512u;
+unsigned int BowlingScene::HEIGHT = 384u;
 
 
-void GlassScene::genRndSeeds( unsigned int width, unsigned int height )
+void BowlingScene::genRndSeeds( unsigned int width, unsigned int height )
 {
   unsigned int* seeds = static_cast<unsigned int*>( m_rnd_seeds->map() );
   fillRandBuffer(seeds, width*height);
   m_rnd_seeds->unmap();
 }
 
-void GlassScene::initScene( InitialCameraData& camera_data ) 
+void BowlingScene::initScene( InitialCameraData& camera_data ) 
 {
   try {
     optix::Material material[3];
     createContext( camera_data );
     createMaterials( material );
-    // createGeometry( material, m_obj_path );
+    createGeometry( material, m_obj_path );
 
-	initObjects(m_obj_path);
+	//initObjects(m_obj_path);
 
     m_context->validate();
     m_context->compile();
@@ -155,18 +155,18 @@ void GlassScene::initScene( InitialCameraData& camera_data )
 }
 
 
-Buffer GlassScene::getOutputBuffer()
+Buffer BowlingScene::getOutputBuffer()
 {
   return m_context["output_buffer"]->getBuffer();
 }
 
 
-void GlassScene::trace( const RayGenCameraData& camera_data )
+void BowlingScene::trace( const RayGenCameraData& camera_data )
 {
-	world->stepSimulation(1 / 300.f, 10);
+	//world->stepSimulation(1 / 300.f, 10);
 
-	pin->step();
-	groundPlane->step();
+	//pin->step();
+	//groundPlane->step();
 
 	/*
 	btTransform trans;
@@ -219,7 +219,7 @@ void GlassScene::trace( const RayGenCameraData& camera_data )
 }
 
 
-void GlassScene::doResize( unsigned int width, unsigned int height )
+void BowlingScene::doResize( unsigned int width, unsigned int height )
 {
   // We need to update buffer sizes if resized (output_buffer handled in base class)
   m_context["variance_sum_buffer"]->getBuffer()->setSize( width, height );
@@ -231,7 +231,7 @@ void GlassScene::doResize( unsigned int width, unsigned int height )
 
 
 // Return whether we processed the key or not
-bool GlassScene::keyPressed(unsigned char key, int x, int y)
+bool BowlingScene::keyPressed(unsigned char key, int x, int y)
 {
   float r = m_context["aperture_radius"]->getFloat();
   switch (key)
@@ -268,7 +268,7 @@ bool GlassScene::keyPressed(unsigned char key, int x, int y)
 }
 
 
-void  GlassScene::createContext( InitialCameraData& camera_data )
+void  BowlingScene::createContext( InitialCameraData& camera_data )
 {
   // Context
   m_context->setEntryPointCount( 2 );
@@ -293,12 +293,12 @@ void  GlassScene::createContext( InitialCameraData& camera_data )
   output_buffer->set(buffer);
   
   // Pinhole Camera ray gen and exception program
-  std::string         ptx_path = ptxpath( "glass", "pinhole_camera.cu" );
+  std::string         ptx_path = ptxpath( "tracer", "dof_camera.cu" );
   m_context->setRayGenerationProgram( DOF, m_context->createProgramFromPTXFile( ptx_path, "dof_camera" ) );
   m_context->setExceptionProgram(     DOF, m_context->createProgramFromPTXFile( ptx_path, "exception" ) );
 
   // Adaptive Pinhole Camera ray gen and exception program
-  ptx_path = ptxpath( "glass", "adaptive_pinhole_camera.cu" );
+  ptx_path = ptxpath( "tracer", "adaptive_pinhole_camera.cu" );
   m_context->setRayGenerationProgram( AdaptivePinhole, m_context->createProgramFromPTXFile( ptx_path, "pinhole_camera" ) );
   m_context->setExceptionProgram(     AdaptivePinhole, m_context->createProgramFromPTXFile( ptx_path, "exception" ) );
 
@@ -349,7 +349,7 @@ void  GlassScene::createContext( InitialCameraData& camera_data )
   m_context["bad_color"]->setFloat( 0.0f, 1.0f, 1.0f );
 
   // Miss program.
-  ptx_path = ptxpath( "glass", "gradientbg.cu" );
+  ptx_path = ptxpath( "tracer", "gradientbg.cu" );
   m_context->setMissProgram( 0, m_context->createProgramFromPTXFile( ptx_path, "miss" ) );
   m_context["background_light"]->setFloat( 1.0f, 1.0f, 1.0f );
   m_context["background_dark"]->setFloat( 0.3f, 0.3f, 0.3f );
@@ -408,13 +408,13 @@ void  GlassScene::createContext( InitialCameraData& camera_data )
 }
 
 
-void GlassScene::createMaterials( Material material[] )
+void BowlingScene::createMaterials( Material material[] )
 {
   material[0] = m_context->createMaterial();
   material[1] = m_context->createMaterial();
   material[2] = m_context->createMaterial();
 
-  makeMaterialPrograms(material[0], "checkerboard.cu", "closest_hit_radiance", "any_hit_shadow");
+  makeMaterialPrograms(material[0], "phong.cu", "closest_hit_radiance", "any_hit_shadow");
   
   material[0]["ka" ]->setFloat( 0.2f, 0.2f, 0.2f );
   material[0]["ks" ]->setFloat( 0.5f, 0.5f, 0.5f );
@@ -423,23 +423,23 @@ void GlassScene::createMaterials( Material material[] )
   material[0]["importance_cutoff"  ]->setFloat( 0.01f );
   material[0]["cutoff_color"       ]->setFloat( 0.2f, 0.2f, 0.2f );
   material[0]["reflection_maxdepth"]->setInt( 5 );
-  material[0]["kd_map"]->setTextureSampler( loadTexture( m_context, "D:\\OptiX SDK 3.0.1\\SDK - Copy\\glass\\wood_floor.ppm", make_float3(1, 1, 1)) );
+  material[0]["kd_map"]->setTextureSampler( loadTexture( m_context, m_obj_path + "/wood_floor.ppm", make_float3(1, 1, 1)) );
 
  
 
-  // Checkerboard to aid positioning, not used in final setup.
-  makeMaterialPrograms(material[1], "checkerboard.cu", "closest_hit_radiance", "any_hit_shadow");
+  // phong to aid positioning, not used in final setup.
+  makeMaterialPrograms(material[1], "phong.cu", "closest_hit_radiance", "any_hit_shadow");
   
   material[1]["ka" ]->setFloat( 0.6f, 0.6f, 0.6f );
   material[1]["ks" ]->setFloat( 0.5f, 0.5f, 0.5f );
-  material[1]["kr" ]->setFloat( 0.0f, 0.0f, 0.0f );
+  material[1]["kr" ]->setFloat( 0.05f, 0.05f, 0.05f );
   material[1]["ns" ]->setInt( 64 );
   material[1]["importance_cutoff"  ]->setFloat( 0.01f );
   material[1]["cutoff_color"       ]->setFloat( 0.2f, 0.2f, 0.2f );
   material[1]["reflection_maxdepth"]->setInt( 5 );
-  material[1]["kd_map"]->setTextureSampler( loadTexture( m_context, "D:\\OptiX SDK 3.0.1\\SDK - Copy\\glass\\pin-diffuse.ppm", make_float3(1, 1, 1)) );
+  material[1]["kd_map"]->setTextureSampler( loadTexture( m_context, m_obj_path + "/pin-diffuse.ppm", make_float3(1, 1, 1)) );
 
-  makeMaterialPrograms(material[2], "checkerboard.cu", "closest_hit_radiance", "any_hit_shadow");
+  makeMaterialPrograms(material[2], "phong.cu", "closest_hit_radiance", "any_hit_shadow");
   
   material[2]["ka" ]->setFloat( 0.2f, 0.2f, 0.2f );
   material[2]["ks" ]->setFloat( 0.5f, 0.5f, 0.5f );
@@ -448,45 +448,45 @@ void GlassScene::createMaterials( Material material[] )
   material[2]["importance_cutoff"  ]->setFloat( 0.01f );
   material[2]["cutoff_color"       ]->setFloat( 0.2f, 0.2f, 0.2f );
   material[2]["reflection_maxdepth"]->setInt( 5 );
-  material[2]["kd_map"]->setTextureSampler( loadTexture( m_context, "D:\\OptiX SDK 3.0.1\\SDK - Copy\\glass\\cloth.ppm", make_float3(1, 1, 1)) );
+  material[2]["kd_map"]->setTextureSampler( loadTexture( m_context, m_obj_path + "/cloth.ppm", make_float3(1, 1, 1)) );
 
 }
 
-void GlassScene::initObjects(const std::string& res_path) {
-	std::string mesh_path = ptxpath( "glass", "triangle_mesh_iterative.cu" );
-	std::string mat_path = ptxpath("glass", "checkerboard.cu");
+void BowlingScene::initObjects(const std::string& res_path) {
+	//std::string mesh_path = ptxpath( "tracer", "triangle_mesh_iterative.cu" );
+	//std::string mat_path = ptxpath("tracer", "phong.cu");
 
-	pin = new BowlingPin(m_context);
-	pin->initGraphics(mesh_path, mat_path, res_path);
-	pin->initPhysics(res_path);
+	//pin = new BowlingPin(m_context);
+	//pin->initGraphics(mesh_path, mat_path, res_path);
+	//pin->initPhysics(res_path);
 
-	groundPlane = new GroundPlane(m_context);
-	groundPlane->initGraphics(mesh_path, mat_path, res_path);
-	groundPlane->initPhysics(res_path);
+	//groundPlane = new GroundPlane(m_context);
+	//groundPlane->initGraphics(mesh_path, mat_path, res_path);
+	//groundPlane->initPhysics(res_path);
 
-	btDbvtBroadphase* broadPhase = new btDbvtBroadphase();
+	//btDbvtBroadphase* broadPhase = new btDbvtBroadphase();
 
-	btDefaultCollisionConfiguration* collisionConfiguration = new btDefaultCollisionConfiguration();
-	btCollisionDispatcher* dispatcher = new btCollisionDispatcher(collisionConfiguration);
+	//btDefaultCollisionConfiguration* collisionConfiguration = new btDefaultCollisionConfiguration();
+	//btCollisionDispatcher* dispatcher = new btCollisionDispatcher(collisionConfiguration);
 
-	btSequentialImpulseConstraintSolver* solver = new btSequentialImpulseConstraintSolver;
+	//btSequentialImpulseConstraintSolver* solver = new btSequentialImpulseConstraintSolver;
 
-	world = new btDiscreteDynamicsWorld(dispatcher, broadPhase, solver, collisionConfiguration);
-	world->addRigidBody(pin->getRigidBody());
-	world->addRigidBody(groundPlane->getRigidBody());
+	//world = new btDiscreteDynamicsWorld(dispatcher, broadPhase, solver, collisionConfiguration);
+	//world->addRigidBody(pin->getRigidBody());
+	//world->addRigidBody(groundPlane->getRigidBody());
 
-	Group g = m_context->createGroup();
-	g->setChildCount(2);
-	g->setChild<Transform>(0, pin->getTransform());
-	g->setChild<Transform>(1, groundPlane->getTransform());
+	//Group g = m_context->createGroup();
+	//g->setChildCount(2);
+	//g->setChild<Transform>(0, pin->getTransform());
+	//g->setChild<Transform>(1, groundPlane->getTransform());
 
-	g->setAcceleration(m_context->createAcceleration("Bvh", "Bvh"));
+	//g->setAcceleration(m_context->createAcceleration("Bvh", "Bvh"));
 
-	m_context["top_object"]->set(g);
-	m_context["top_shadower"]->set(g);
+	//m_context["top_object"]->set(g);
+	//m_context["top_shadower"]->set(g);
 }
 
-void GlassScene::createGeometry( Material material[], const std::string& path )
+void BowlingScene::createGeometry( Material material[], const std::string& path )
 {
   // Load OBJ files and set as geometry groups
   GeometryGroup geomgroup[11] =
@@ -565,36 +565,36 @@ void GlassScene::createGeometry( Material material[], const std::string& path )
 	  m[i] = Matrix4x4(matrix[i]);
   }
 
-  // std::string sphere_path = ptxpath("glass", "sphere.cu");
+  // std::string sphere_path = ptxpath("tracer", "sphere.cu");
   // Program sphere_intersect_program = m_context->createProgramFromPTXFile( sphere_path, "intersect" );
 
   // changed, use .cu file instead of compiled .ptx file
-  std::string         mesh_path = ptxpath( "glass", "triangle_mesh_iterative.cu" );
-  std::string         mat_path = ptxpath( "glass", "checkerboard.cu" );
+  std::string         mesh_path = ptxpath( "tracer", "triangle_mesh_iterative.cu" );
+  std::string         mat_path = ptxpath( "tracer", "phong.cu" );
   // std::string prog_path = std::string(sutilSamplesPtxDir()) + "/glass_generated_triangle_mesh_iterative.cu.ptx";
 
-  BowlingPin* pin = new BowlingPin(m_context);
-  pin->initGraphics(mesh_path, mat_path, path);
-  pin->initPhysics(path);
+ // BowlingPin* pin = new BowlingPin(m_context);
+ // pin->initGraphics(mesh_path, mat_path, path);
+ // pin->initPhysics(path);
 
-  btDbvtBroadphase* broadPhase = new btDbvtBroadphase();
+ // btDbvtBroadphase* broadPhase = new btDbvtBroadphase();
 
-	btDefaultCollisionConfiguration* collisionConfiguration = new btDefaultCollisionConfiguration();
-	btCollisionDispatcher* dispatcher = new btCollisionDispatcher(collisionConfiguration);
+	//btDefaultCollisionConfiguration* collisionConfiguration = new btDefaultCollisionConfiguration();
+	//btCollisionDispatcher* dispatcher = new btCollisionDispatcher(collisionConfiguration);
 
-	btSequentialImpulseConstraintSolver* solver = new btSequentialImpulseConstraintSolver;
+	//btSequentialImpulseConstraintSolver* solver = new btSequentialImpulseConstraintSolver;
 
-	btDiscreteDynamicsWorld* world = new btDiscreteDynamicsWorld(dispatcher, broadPhase, solver, collisionConfiguration);
-	world->addRigidBody(pin->getRigidBody());
+	//btDiscreteDynamicsWorld* world = new btDiscreteDynamicsWorld(dispatcher, broadPhase, solver, collisionConfiguration);
+	//world->addRigidBody(pin->getRigidBody());
 
-	for (int i = 0; i < 10; i++) {
-		world->stepSimulation(1 / 60.0f, 10);
+	//for (int i = 0; i < 10; i++) {
+	//	world->stepSimulation(1 / 60.0f, 10);
 
-		btTransform trans;
-		pin->getRigidBody()->getMotionState()->getWorldTransform(trans);
+	//	btTransform trans;
+	//	pin->getRigidBody()->getMotionState()->getWorldTransform(trans);
 
-		printf("%.3f\n", trans.getOrigin().getY());
-	}
+	//	printf("%.3f\n", trans.getOrigin().getY());
+	//}
 
   Program mesh_intersect = m_context->createProgramFromPTXFile( mesh_path, "mesh_intersect" );
 
@@ -606,8 +606,8 @@ void GlassScene::createGeometry( Material material[], const std::string& path )
 	  objloader[i] = new ObjLoader( (path + "/pin.obj").c_str(), m_context, geomgroup[i], material[1] );
 	  objloader[i]->setIntersectProgram( mesh_intersect );
 	  objloader[i]->load( m[i] );
-	  Geometry pin = geomgroup[i]->getChild(0)->getGeometry();
-	  // pin["something"]->setFloat(0, 0, 0);
+	  //Geometry pin = geomgroup[i]->getChild(0)->getGeometry();
+	  //pin["something"]->setFloat(0, 0, 0);
   }
 
   float matrixFloor[] = 
@@ -620,7 +620,7 @@ void GlassScene::createGeometry( Material material[], const std::string& path )
   floorObj.setIntersectProgram( mesh_intersect );
   floorObj.load(mFloor);
 
-	Geometry floor = geomgroup[10]->getChild(0)->getGeometry();
+	//Geometry floor = geomgroup[10]->getChild(0)->getGeometry();
 	// floor["something"]->setFloat(10, 10, 10);
 	float anotherTransformation[] = {
 	 1,  0,  0,  0, 
@@ -646,7 +646,7 @@ void GlassScene::createGeometry( Material material[], const std::string& path )
   t->setMatrix(false, anotherTransformation, NULL);
   t->setChild(ballGroup);
 
-  // Geometry ball = ballGroup->getChild(0)->getGeometry();
+  Geometry ball = ballGroup->getChild(0)->getGeometry();
 
   // ball["something"]->setFloat(0, 0, 0);
 
@@ -654,8 +654,8 @@ void GlassScene::createGeometry( Material material[], const std::string& path )
   Geometry table = m_context->createGeometry();
   table->setPrimitiveCount(1u);
 
-  Program table_ch = m_context->createProgramFromPTXFile(ptxpath("glass", "table.cu"), "closest_hit_radiance");
-  Program table_ah = m_context->createProgramFromPTXFile(ptxpath("glass", "table.cu"), "any_hit_shadow" );
+  Program table_ch = m_context->createProgramFromPTXFile(ptxpath("tracer", "table.cu"), "closest_hit_radiance");
+  Program table_ah = m_context->createProgramFromPTXFile(ptxpath("tracer", "table.cu"), "any_hit_shadow" );
 
   Material table_mat = m_context->createMaterial();
   table_mat->setClosestHitProgram(0, table_ah);
@@ -664,40 +664,40 @@ void GlassScene::createGeometry( Material material[], const std::string& path )
 
   GeometryGroup maingroup = m_context->createGeometryGroup();
 
-  Group g = m_context->createGroup();
-  g->setChildCount(2);
-  g->setChild<Transform>(0, t);
-  // g->setChild<GeometryGroup>(0, ballGroup);
+  //Group g = m_context->createGroup();
+  //g->setChildCount(2);
+  //g->setChild<Transform>(0, t);
+  //g->setChild<GeometryGroup>(0, ballGroup);
 
-  g->setAcceleration(m_context->createAcceleration("Bvh", "Bvh"));
-  m_context["top_object"]->set(g);
-  m_context["top_shadower"]->set(g);
+  //g->setAcceleration(m_context->createAcceleration("Bvh", "Bvh"));
+  //m_context["top_object"]->set(g);
+  //m_context["top_shadower"]->set(g);
 
-  g->setChild<Transform>(1, pin->getTransform());
+  //g->setChild<Transform>(1, pin->getTransform());
 
-  /*
+ 
   maingroup->setChildCount( 12 );
   for(int i = 0; i < 11; i++)
   {
 	maingroup->setChild( i, geomgroup[i]->getChild(0) );
   }
-  // maingroup->setChild(11, ballGroup->getChild(0));
-  // maingroup->setChild(11, t->getChild<GeometryGroup>()->getChild(0));
-  maingroup->setChild(11, t);
+  maingroup->setChild(11, ballGroup->getChild(0));
+  //maingroup->setChild(11, t->getChild<GeometryGroup>()->getChild(0));
+  //maingroup->setChild(11, t);
 
   maingroup->setAcceleration( m_context->createAcceleration("Bvh","Bvh") );
   m_context["top_object"]->set( maingroup );
   m_context["top_shadower"]->set( maingroup );
-  */
+
 }
 
 
-void GlassScene::makeMaterialPrograms( Material material, const char *filename, 
+void BowlingScene::makeMaterialPrograms( Material material, const char *filename, 
                                                           const char *ch_program_name,
                                                           const char *ah_program_name )
 {
-  Program ch_program = m_context->createProgramFromPTXFile( ptxpath("glass", filename), ch_program_name );
-  Program ah_program = m_context->createProgramFromPTXFile( ptxpath("glass", filename), ah_program_name );
+  Program ch_program = m_context->createProgramFromPTXFile( ptxpath("tracer", filename), ch_program_name );
+  Program ah_program = m_context->createProgramFromPTXFile( ptxpath("tracer", filename), ah_program_name );
 
   material->setClosestHitProgram( 0, ch_program );
   material->setAnyHitProgram( 1, ah_program );
@@ -718,8 +718,6 @@ void printUsageAndExit( const std::string& argv0, bool doExit = true )
 
     << "  -h  | --help                               Print this usage message\n"
     << "  -o  | --obj-path <path>                    Specify path to OBJ files\n"
-    << "  -A  | --adaptive-off                       Turn off adaptive AA\n"
-    << "  -g  | --green                              Make the glass green\n"
     << std::endl;
   GLUTDisplay::printUsage();
 
@@ -738,15 +736,10 @@ int main(int argc, char* argv[])
   GLUTDisplay::init( argc, argv );
 
   bool adaptive_aa = true;  // Default to true for now
-  bool green_glass = false;
   std::string obj_path;
   for ( int i = 1; i < argc; ++i ) {
     std::string arg( argv[i] );
-    if ( arg == "--adaptive-off" || arg == "-A" ) {
-      adaptive_aa = false;
-    } else if ( arg == "--green" || arg == "-g" ) {
-      green_glass = true;
-    } else if ( arg == "--obj-path" || arg == "-o" ) {
+	if ( arg == "--obj-path" || arg == "-o" ) {
       if ( i == argc-1 ) {
         printUsageAndExit( argv[0] );
       }
@@ -762,14 +755,14 @@ int main(int argc, char* argv[])
   if( !GLUTDisplay::isBenchmark() ) printUsageAndExit( argv[0], false );
 
   if( obj_path.empty() ) {
-    obj_path = std::string( sutilSamplesDir() ) + "/glass";
+    obj_path = std::string( sutilSamplesDir() ) + "/tracer/res";
   }
 
   try {
-    GlassScene scene( obj_path, adaptive_aa, green_glass );
+    BowlingScene scene( obj_path );
     GLUTDisplay::setTextColor( make_float3( 0.6f, 0.1f, 0.1f ) );
     GLUTDisplay::setTextShadowColor( make_float3( 0.9f ) );
-	GLUTDisplay::run( "GlassScene", &scene, adaptive_aa ? GLUTDisplay::CDProgressive : GLUTDisplay::CDProgressive );
+	GLUTDisplay::run( "BowlingScene", &scene, adaptive_aa ? GLUTDisplay::CDProgressive : GLUTDisplay::CDProgressive );
   } catch( Exception& e ){
     sutilReportError( e.getErrorString().c_str() );
     exit(1);
