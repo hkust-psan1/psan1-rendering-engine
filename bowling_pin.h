@@ -8,6 +8,7 @@
 #include <ObjLoader.h>
 
 #include <btBulletDynamicsCommon.h>
+#include <btBulletCollisionCommon.h>
 
 #include <cd_wavefront.h>
 
@@ -16,6 +17,7 @@ using namespace optix;
 class SceneObject {
 public:
 	SceneObject(Context c) : m_context(c), m_mass(0) {
+		m_initialTransformMtx = NULL;
 	}
 
 	void step() {
@@ -36,8 +38,6 @@ public:
 		ConvexDecomposition::WavefrontObj wo;
 		wo.loadObj((prog_path + m_physicsObjFilename).c_str());
 
-		// printf("%d\n", wo.mTriCount);
-
 		btTriangleMesh* triMesh = new btTriangleMesh();
 
 		for (int i = 0; i < wo.mTriCount; i++) {
@@ -49,12 +49,16 @@ public:
 			btVector3 vertex1(wo.mVertices[index1 * 3], wo.mVertices[index1 * 3 + 1], wo.mVertices[index1 * 3 + 2]);
 			btVector3 vertex2(wo.mVertices[index2 * 3], wo.mVertices[index2 * 3 + 1], wo.mVertices[index2 * 3 + 2]);
 
+			float z1 = wo.mVertices[index0 * 3 + 1];
+			float z2 = wo.mVertices[index1 * 3 + 1];
+			float z3 = wo.mVertices[index2 * 3 + 1];
+
 			triMesh->addTriangle(vertex0, vertex1, vertex2);
 		}
 
 		btCollisionShape* pinCollisionShape = new btBvhTriangleMeshShape(triMesh, true);
 
-		btDefaultMotionState* state = new btDefaultMotionState(btTransform(btQuaternion(0, 0, 0, 1), btVector3(0, 0, 0)));
+		btDefaultMotionState* state = new btDefaultMotionState(btTransform(btQuaternion(0, 0, 0, 1), btVector3(0, 10, 0)));
 
 		btVector3 inertia(0, 0, 0);
 		// pinCollisionShape->calculateLocalInertia(mass, inertia);
@@ -94,15 +98,34 @@ public:
 		loader.load();
 
 		m_transform = m_context->createTransform();
+		/*
+		if (m_initialTransformMtx != NULL) {
+			m_transform->setMatrix(false, m_initialTransformMtx, NULL);
+		}
+		*/
 		m_transform->setChild(group);
 	}
 
 	inline btRigidBody* getRigidBody() const { return m_rigidBody; }
 
 	inline Transform getTransform() const { return m_transform; };
+
+	inline void setInitialTransform(float* t) { m_initialTransformMtx = t; };
+
+	void setInitialOriginPosition(float x, float y, float z) {
+		float m[] = {
+			1, 0, 0, x,
+			0, 1, 0, y,
+			0, 0, 0, z,
+			0, 0, 0, 1,
+		};
+		setInitialTransform(m);
+	}
 protected:
 	Context m_context;
 	Transform m_transform;
+
+	float* m_initialTransformMtx;
 
 	btRigidBody* m_rigidBody;
 
@@ -123,8 +146,8 @@ public:
 	}
 
 	virtual void initPhysics(std::string prog_path) {
-		btCollisionShape* cylinderShape = new btCylinderShape(btVector3(1, 1, 1));
-		btDefaultMotionState* state = new btDefaultMotionState(btTransform(btQuaternion(0, 0, 0, 1), btVector3(0, 5, 0)));
+		btCollisionShape* cylinderShape = new btCylinderShape(btVector3(1.65, 10.43 / 2, 1));
+		btDefaultMotionState* state = new btDefaultMotionState(btTransform(btQuaternion(0, 0, 0, 1), btVector3(0, 10, 0)));
 
 		btVector3 inertia(0, 0, 0);
 		cylinderShape->calculateLocalInertia(1, inertia);
@@ -148,7 +171,7 @@ public:
 
 	virtual void initPhysics(std::string prog_path) {
 		btCollisionShape* groundShape = new btStaticPlaneShape(btVector3(0, 1, 0), -1);
-		btDefaultMotionState* state = new btDefaultMotionState(btTransform(btQuaternion(0, 0, 0, 1), btVector3(0, -1, 0)));
+		btDefaultMotionState* state = new btDefaultMotionState(btTransform(btQuaternion(0, 0, 0, 1), btVector3(0, 0, 0)));
 
 		btRigidBody::btRigidBodyConstructionInfo info(0, state, groundShape, btVector3(0, 0, 0));
 

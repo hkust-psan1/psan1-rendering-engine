@@ -122,6 +122,8 @@ private:
 
   BowlingPin* pin;
   GroundPlane* groundPlane;
+
+  Group g;
 };
 
 unsigned int GlassScene::WIDTH  = 512u;
@@ -167,6 +169,9 @@ void GlassScene::trace( const RayGenCameraData& camera_data )
 
 	pin->step();
 	groundPlane->step();
+
+	g->getAcceleration()->markDirty();
+
 
 	/*
 	btTransform trans;
@@ -457,6 +462,7 @@ void GlassScene::initObjects(const std::string& res_path) {
 	std::string mat_path = ptxpath("glass", "checkerboard.cu");
 
 	pin = new BowlingPin(m_context);
+	pin->setInitialOriginPosition(0, 5, 0);
 	pin->initGraphics(mesh_path, mat_path, res_path);
 	pin->initPhysics(res_path);
 
@@ -475,7 +481,7 @@ void GlassScene::initObjects(const std::string& res_path) {
 	world->addRigidBody(pin->getRigidBody());
 	world->addRigidBody(groundPlane->getRigidBody());
 
-	Group g = m_context->createGroup();
+	g = m_context->createGroup();
 	g->setChildCount(2);
 	g->setChild<Transform>(0, pin->getTransform());
 	g->setChild<Transform>(1, groundPlane->getTransform());

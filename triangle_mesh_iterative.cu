@@ -109,7 +109,7 @@ RT_PROGRAM void mesh_bounds (int primIdx, float result[6])
   optix::Aabb* aabb = (optix::Aabb*)result;
 
   if(area > 0.0f && !isinf(area)) {
-    aabb->m_min = fminf( fminf( v0, v1), v2 );
+	  aabb->m_min = fminf( fminf( v0, v1), v2 );
     aabb->m_max = fmaxf( fmaxf( v0, v1), v2 );
   } else {
     aabb->invalidate();
