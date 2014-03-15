@@ -41,7 +41,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-//#include "bowling_pin.h"
+#include "bowling_pin.h"
 
 using namespace optix;
 
