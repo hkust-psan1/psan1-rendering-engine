@@ -33,6 +33,8 @@ rtDeclareVariable(int,          max_depth, , );
 rtDeclareVariable(unsigned int, radiance_ray_type, , );
 rtDeclareVariable(unsigned int, shadow_ray_type, , );
 rtDeclareVariable(float3, shading_normal, attribute shading_normal, );
+rtDeclareVariable(float3, tangent, attribute tangent, ); 
+rtDeclareVariable(float3, bitangent, attribute bitangent, ); 
 rtDeclareVariable(float3, front_hit_point, attribute front_hit_point, );
 rtDeclareVariable(float3, back_hit_point, attribute back_hit_point, );
 
@@ -45,10 +47,12 @@ rtDeclareVariable(float3,       tile_color_light, , );
 rtDeclareVariable(float3,       ambient_light_color, , );
 rtDeclareVariable(float3,       ka, , );
 rtDeclareVariable(float3,       kr, , );
-rtDeclareVariable(float3,       ks, , );
+// rtDeclareVariable(float3,       ks, , );
 rtDeclareVariable(int,       ns, , );
 
 rtTextureSampler<float4, 2>     kd_map;
+rtTextureSampler<float4, 2>     ks_map;
+rtTextureSampler<float4, 2>		normal_map;
 rtDeclareVariable(float3, texcoord, attribute texcoord, ); 
 rtDeclareVariable(float3,       cutoff_color, , );
 rtDeclareVariable(int,          reflection_maxdepth, , );
@@ -99,8 +103,16 @@ RT_PROGRAM void closest_hit_radiance()
   const float3 i = ray.direction; 
   const float3 uvw = texcoord;
   const float3 kd = make_float3( tex2D( kd_map, uvw.x, uvw.y ) );
+  const float3 ks = make_float3( tex2D( ks_map, uvw.x, uvw.y ) );
+  const float3 k_normal = make_float3( tex2D( normal_map, uvw.x, uvw.y) );
 
+  const float3 T = normalize(rtTransformNormal(RT_OBJECT_TO_WORLD, tangent)); // tangent  
+  const float3 B = normalize(rtTransformNormal(RT_OBJECT_TO_WORLD, bitangent)); // bitangent  
   const float3 N = normalize(rtTransformNormal(RT_OBJECT_TO_WORLD, shading_normal)); // normal  
+
+  const float3 coeff = k_normal * 2 - make_float3(1, 1, 1);
+  const float3 normal = T * coeff.x + B * coeff.y + N * coeff.z;
+
   const float3 fhp = rtTransformPoint(RT_OBJECT_TO_WORLD, front_hit_point);
 
   //attenuation
@@ -118,9 +130,11 @@ RT_PROGRAM void closest_hit_radiance()
   {
 	BasicLight light = lights[i];
 	float Ldist = length(light.pos - fhp);
+
     float3 L = normalize(light.pos - fhp);
 	float3 H = normalize(L - ray.direction);
-	float nDl = dot(N, L);
+	// float nDl = dot(N, L);
+	float nDl = dot(normal, L);
 
 	// cast shadow ray
     PerRayData_shadow shadow_prd;
@@ -129,14 +143,15 @@ RT_PROGRAM void closest_hit_radiance()
 	{
       optix::Ray shadow_ray = optix::make_Ray( fhp, L, shadow_ray_type, scene_epsilon, Ldist );
       rtTrace(top_shadower, shadow_ray, shadow_prd);
-	  result += kd * light.color * shadow_prd.attenuation * (nDl + max(pow(dot(H, L), ns), .0f));
+	  result += light.color * shadow_prd.attenuation * (kd * nDl + ks * max(pow(dot(H, normal), ns), .0f));
     }
 
   }
 
   if (depth < min(reflection_maxdepth, max_depth))
   {
-    r = reflect(i, N);
+    // r = reflect(i, N);
+    r = reflect(i, normal);
       
     float importance = prd_radiance.importance * reflection * optix::luminance( kr * beer_attenuation );
     if ( importance > importance_cutoff ) 

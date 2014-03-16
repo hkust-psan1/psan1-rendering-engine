@@ -44,12 +44,16 @@ rtDeclareVariable(float3, front_hit_point, attribute front_hit_point, );
 rtDeclareVariable(float3, texcoord, attribute texcoord, ); 
 rtDeclareVariable(float3, geometric_normal, attribute geometric_normal, ); 
 rtDeclareVariable(float3, shading_normal, attribute shading_normal, ); 
+rtDeclareVariable(float3, tangent, attribute tangent, ); 
+rtDeclareVariable(float3, bitangent, attribute bitangent, ); 
 
 rtDeclareVariable(optix::Ray, ray, rtCurrentRay, );
 
 
 RT_PROGRAM void mesh_intersect( int primIdx )
 {
+	// primIdx is the index to find the primitive (e.g. triangle in most cases)
+	// v_idx is the index to find the vertex data of that primitive (triangle)
   int3 v_idx = vindex_buffer[primIdx];
 
   float3 p0 = vertex_buffer[ v_idx.x ];
@@ -84,6 +88,18 @@ RT_PROGRAM void mesh_intersect( int primIdx )
         float2 t0 = texcoord_buffer[ t_idx.x ];
         float2 t1 = texcoord_buffer[ t_idx.y ];
         float2 t2 = texcoord_buffer[ t_idx.z ];
+
+		// for tangent space calculations
+		float3 deltaP1 = p1 - p0;
+		float3 deltaP2 = p2 - p0;
+
+		float2 deltaT1 = t1 - t0;
+		float2 deltaT2 = t2 - t0;
+
+		float r = 1.0f / (deltaT1.x * deltaT2.y - deltaT1.y * deltaT2.x);
+		tangent = (deltaP1 * deltaT2.y - deltaP2 * deltaT1.y) * r;
+		bitangent = (deltaP2 * deltaT1.x - deltaP1 * deltaT2.x) * r;
+
         texcoord = make_float3( t1*beta + t2*gamma + t0*(1.0f-beta-gamma) );
       }
 

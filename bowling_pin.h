@@ -76,15 +76,22 @@ public:
 		mat->setClosestHitProgram(0, closestHit);
 		mat->setAnyHitProgram(1, anyHit);
 
-		mat["ka"]->setFloat(0.2, 0.2, 0.2);
-		mat["ks"]->setFloat(0.5, 0.5, 0.5);
-		mat["kr"]->setFloat( 0.8f, 0.8f, 0.8f );
-		mat["ns"]->setInt(32);
+		mat["ka"]->setFloat(m_ka);
+		mat["kr"]->setFloat(m_kr);
+		mat["ns"]->setInt(m_ns);
+
 		mat["importance_cutoff"]->setFloat( 0.01f );
 		mat["cutoff_color"]->setFloat( 0.2f, 0.2f, 0.2f );
 		mat["reflection_maxdepth"]->setInt( 5 );
+
 		mat["kd_map"]->setTextureSampler(loadTexture(m_context, 
 			"D:/OptiX SDK 3.0.1/SDK - Copy/glass/" + m_diffuseMapFilename, 
+			make_float3(1, 1, 1)));
+		mat["ks_map"]->setTextureSampler(loadTexture(m_context, 
+			"D:/OptiX SDK 3.0.1/SDK - Copy/glass/" + m_specularMapFilename, 
+			make_float3(1, 1, 1)));
+		mat["normal_map"]->setTextureSampler(loadTexture(m_context, 
+			"D:/OptiX SDK 3.0.1/SDK - Copy/glass/" + m_normalMapFilename, 
 			make_float3(1, 1, 1)));
 
 		Program mesh_intersect = m_context->createProgramFromPTXFile(prog_path, "mesh_intersect");
@@ -134,15 +141,28 @@ protected:
 	std::string m_renderObjFilename;
 	std::string m_physicsObjFilename;
 	std::string m_diffuseMapFilename;
+	std::string m_normalMapFilename;
+	std::string m_specularMapFilename;
+
+	float3 m_ka;
+	float3 m_kr;
+	float m_ns;
 };
 
 class BowlingPin : public SceneObject {
 public:
 	BowlingPin(Context c) : SceneObject(c) {
 		m_mass = 1;
+
+		m_ka = make_float3(0.2, 0.2, 0.2);
+		m_kr = make_float3(0, 0, 0);
+		m_ns = 10;
+
 		m_renderObjFilename = "/pin.obj";
 		m_physicsObjFilename = "/pin-phy.obj";
 		m_diffuseMapFilename = "/pin-diffuse.ppm";
+		m_normalMapFilename = "/brick_normal.ppm";
+		m_specularMapFilename = "/brick_specular.ppm";
 	}
 
 	virtual void initPhysics(std::string prog_path) {
@@ -164,9 +184,16 @@ class GroundPlane : public SceneObject {
 public:
 	GroundPlane(Context c) : SceneObject(c) {
 		m_mass = 0;
+
+		m_ka = make_float3(0.2, 0.2, 0.2);
+		m_kr = make_float3(0.3, 0.3, 0.3);
+		m_ns = 20;
+
 		m_renderObjFilename = "/bowling-floor.obj";
 		m_physicsObjFilename = "/bowling-floor.obj";
-		m_diffuseMapFilename = "/wood_floor.ppm";
+		m_diffuseMapFilename = "/brick_diffuse.ppm";
+		m_normalMapFilename = "/brick_normal.ppm";
+		m_specularMapFilename = "/brick_specular.ppm";
 	}
 
 	virtual void initPhysics(std::string prog_path) {
