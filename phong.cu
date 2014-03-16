@@ -133,7 +133,7 @@ RT_PROGRAM void closest_hit_radiance()
 	{
       optix::Ray shadow_ray = optix::make_Ray( fhp, L, shadow_ray_type, scene_epsilon, Ldist );
       rtTrace(top_shadower, shadow_ray, shadow_prd);
-	  result += kd * light.color * shadow_prd.attenuation * (nDl + max(pow(dot(H, L), ns), .0f));
+	  result += light.color * shadow_prd.attenuation * (kd * nDl + ks * max(pow(dot(H, L), ns), .0f));
     }
 
   }
