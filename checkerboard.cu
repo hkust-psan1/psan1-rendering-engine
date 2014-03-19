@@ -58,6 +58,7 @@ rtDeclareVariable(float3,       cutoff_color, , );
 rtDeclareVariable(int,          reflection_maxdepth, , );
 rtDeclareVariable(float,        importance_cutoff, , );
 
+rtDeclareVariable(int, has_normal_map, , );
 
 
 rtBuffer<BasicLight> lights;
@@ -104,14 +105,21 @@ RT_PROGRAM void closest_hit_radiance()
   const float3 uvw = texcoord;
   const float3 kd = make_float3( tex2D( kd_map, uvw.x, uvw.y ) );
   const float3 ks = make_float3( tex2D( ks_map, uvw.x, uvw.y ) );
-  const float3 k_normal = make_float3( tex2D( normal_map, uvw.x, uvw.y) );
 
   const float3 T = normalize(rtTransformNormal(RT_OBJECT_TO_WORLD, tangent)); // tangent  
   const float3 B = normalize(rtTransformNormal(RT_OBJECT_TO_WORLD, bitangent)); // bitangent  
   const float3 N = normalize(rtTransformNormal(RT_OBJECT_TO_WORLD, shading_normal)); // normal  
 
-  const float3 coeff = k_normal * 2 - make_float3(1, 1, 1);
-  const float3 normal = T * coeff.x + B * coeff.y + N * coeff.z;
+  // normal vector after considering normal map (if any)
+  float3 normal;
+
+  if (has_normal_map) {
+	  const float3 k_normal = make_float3( tex2D( normal_map, uvw.x, uvw.y) );
+	  const float3 coeff = k_normal * 2 - make_float3(1, 1, 1);
+	  normal = T * coeff.x + B * coeff.y + N * coeff.z;
+  } else {
+	  normal = N;
+  }
 
   const float3 fhp = rtTransformPoint(RT_OBJECT_TO_WORLD, front_hit_point);
 
@@ -126,8 +134,7 @@ RT_PROGRAM void closest_hit_radiance()
   float3 color = cutoff_color;
   
   unsigned int num_lights = lights.size();
-  for(int i = 0; i < num_lights; i++) 
-  {
+  for (int i = 0; i < num_lights; i++) {
 	BasicLight light = lights[i];
 	float Ldist = length(light.pos - fhp);
 
@@ -139,13 +146,12 @@ RT_PROGRAM void closest_hit_radiance()
 	// cast shadow ray
     PerRayData_shadow shadow_prd;
     shadow_prd.attenuation = make_float3(1);
-	if(nDl > 0)
-	{
+
+	if(nDl > 0) {
       optix::Ray shadow_ray = optix::make_Ray( fhp, L, shadow_ray_type, scene_epsilon, Ldist );
       rtTrace(top_shadower, shadow_ray, shadow_prd);
 	  result += light.color * shadow_prd.attenuation * (kd * nDl + ks * max(pow(dot(H, normal), ns), .0f));
     }
-
   }
 
   if (depth < min(reflection_maxdepth, max_depth))

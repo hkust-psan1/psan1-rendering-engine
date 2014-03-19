@@ -49,7 +49,6 @@ rtDeclareVariable(float3, bitangent, attribute bitangent, );
 
 rtDeclareVariable(optix::Ray, ray, rtCurrentRay, );
 
-
 RT_PROGRAM void mesh_intersect( int primIdx )
 {
 	// primIdx is the index to find the primitive (e.g. triangle in most cases)

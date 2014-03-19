@@ -20,18 +20,101 @@ public:
 		m_initialTransformMtx = NULL;
 	}
 
-	void step() {
-		btTransform trans;
-		m_rigidBody->getMotionState()->getWorldTransform(trans);
 
+
+	virtual void initGraphics(std::string prog_path, std::string mat_path, std::string res_path) {
+		Material mat = m_context->createMaterial();
+
+		Program closestHit = m_context->createProgramFromPTXFile(mat_path, "closest_hit_radiance");
+		Program anyHit = m_context->createProgramFromPTXFile(mat_path, "any_hit_shadow");
+
+		mat->setClosestHitProgram(0, closestHit);
+		mat->setAnyHitProgram(1, anyHit);
+
+		mat["ka"]->setFloat(m_ka);
+		mat["kr"]->setFloat(m_kr);
+		mat["ns"]->setInt(m_ns);
+
+		mat["importance_cutoff"]->setFloat( 0.01f );
+		mat["cutoff_color"]->setFloat( 0.2f, 0.2f, 0.2f );
+		mat["reflection_maxdepth"]->setInt( 5 );
+
+		mat["kd_map"]->setTextureSampler(loadTexture(m_context, 
+			"D:/OptiX SDK 3.0.1/SDK - Copy/glass/" + m_diffuseMapFilename, 
+			make_float3(1, 1, 1)));
+		mat["ks_map"]->setTextureSampler(loadTexture(m_context, 
+			"D:/OptiX SDK 3.0.1/SDK - Copy/glass/" + m_specularMapFilename, 
+			make_float3(1, 1, 1)));
+		mat["normal_map"]->setTextureSampler(loadTexture(m_context, 
+			"D:/OptiX SDK 3.0.1/SDK - Copy/glass/" + m_normalMapFilename, 
+			make_float3(1, 1, 1)));
+		mat["has_normal_map"]->setInt(0);
+
+		Program mesh_intersect = m_context->createProgramFromPTXFile(prog_path, "mesh_intersect");
+		Program mesh_bounds = m_context->createProgramFromPTXFile(prog_path, "mesh_bounds");
+
+		GeometryGroup group = m_context->createGeometryGroup();
+
+		ObjLoader loader((res_path + m_renderObjFilename).c_str(), m_context, group, mat);
+		loader.setIntersectProgram(mesh_intersect);
+		loader.setBboxProgram(mesh_bounds);
+		loader.load();
+
+		m_transform = m_context->createTransform();
+		/*
+		if (m_initialTransformMtx != NULL) {
+			m_transform->setMatrix(false, m_initialTransformMtx, NULL);
+		}
+		*/
+		m_transform->setChild(group);
+	}
+
+	inline Transform getTransform() const { return m_transform; };
+
+	inline void setInitialTransform(float* t) { m_initialTransformMtx = t; };
+
+	void setInitialOriginPosition(float x, float y, float z) {
 		float m[] = {
-			1, 0, 0, trans.getOrigin().getX(),
-			0, 1, 0, trans.getOrigin().getY(),
-			0, 0, 1, trans.getOrigin().getZ(),
-			0, 0, 0, 1
+			1, 0, 0, x,
+			0, 1, 0, y,
+			0, 0, 0, z,
+			0, 0, 0, 1,
 		};
+		setInitialTransform(m);
+	}
 
-		m_transform->setMatrix(false, m, NULL);
+	btScalar m_mass;
+
+	std::string m_renderObjFilename;
+	std::string m_diffuseMapFilename;
+	std::string m_normalMapFilename;
+	std::string m_specularMapFilename;
+
+	float3 m_ka;
+	float3 m_kr;
+	float m_ns;
+
+protected:
+	Context m_context;
+	Transform m_transform;
+	float* m_initialTransformMtx;
+};
+
+class NonPhysicalObject : public SceneObject {
+public:
+	NonPhysicalObject(Context c) : SceneObject(c) {
+		m_ka = make_float3(0.2, 0.2, 0.2);
+		m_kr = make_float3(0, 0, 0);
+		m_ns = 10;
+
+		m_normalMapFilename = "/default_normal.ppm";
+		m_specularMapFilename = "/default_specular.ppm";
+	}
+};
+
+class PhysicalObject : public SceneObject {
+public:
+	PhysicalObject(Context c) : SceneObject(c) {
 	}
 
 	virtual void initPhysics(std::string prog_path) {
@@ -66,92 +149,31 @@ public:
 
 		m_rigidBody = new btRigidBody(info);
 	}
+	
+	void step() {
+		btTransform trans;
+		m_rigidBody->getMotionState()->getWorldTransform(trans);
 
-	virtual void initGraphics(std::string prog_path, std::string mat_path, std::string res_path) {
-		Material mat = m_context->createMaterial();
+		float m[] = {
+			1, 0, 0, trans.getOrigin().getX(),
+			0, 1, 0, trans.getOrigin().getY(),
+			0, 0, 1, trans.getOrigin().getZ(),
+			0, 0, 0, 1
+		};
 
-		Program closestHit = m_context->createProgramFromPTXFile(mat_path, "closest_hit_radiance");
-		Program anyHit = m_context->createProgramFromPTXFile(mat_path, "any_hit_shadow");
-
-		mat->setClosestHitProgram(0, closestHit);
-		mat->setAnyHitProgram(1, anyHit);
-
-		mat["ka"]->setFloat(m_ka);
-		mat["kr"]->setFloat(m_kr);
-		mat["ns"]->setInt(m_ns);
-
-		mat["importance_cutoff"]->setFloat( 0.01f );
-		mat["cutoff_color"]->setFloat( 0.2f, 0.2f, 0.2f );
-		mat["reflection_maxdepth"]->setInt( 5 );
-
-		mat["kd_map"]->setTextureSampler(loadTexture(m_context, 
-			"D:/OptiX SDK 3.0.1/SDK - Copy/glass/" + m_diffuseMapFilename, 
-			make_float3(1, 1, 1)));
-		mat["ks_map"]->setTextureSampler(loadTexture(m_context, 
-			"D:/OptiX SDK 3.0.1/SDK - Copy/glass/" + m_specularMapFilename, 
-			make_float3(1, 1, 1)));
-		mat["normal_map"]->setTextureSampler(loadTexture(m_context, 
-			"D:/OptiX SDK 3.0.1/SDK - Copy/glass/" + m_normalMapFilename, 
-			make_float3(1, 1, 1)));
-
-		Program mesh_intersect = m_context->createProgramFromPTXFile(prog_path, "mesh_intersect");
-		Program mesh_bounds = m_context->createProgramFromPTXFile(prog_path, "mesh_bounds");
-
-		GeometryGroup group = m_context->createGeometryGroup();
-
-		ObjLoader loader((res_path + m_renderObjFilename).c_str(), m_context, group, mat);
-		loader.setIntersectProgram(mesh_intersect);
-		loader.setBboxProgram(mesh_bounds);
-		loader.load();
-
-		m_transform = m_context->createTransform();
-		/*
-		if (m_initialTransformMtx != NULL) {
-			m_transform->setMatrix(false, m_initialTransformMtx, NULL);
-		}
-		*/
-		m_transform->setChild(group);
+		m_transform->setMatrix(false, m, NULL);
 	}
 
 	inline btRigidBody* getRigidBody() const { return m_rigidBody; }
 
-	inline Transform getTransform() const { return m_transform; };
-
-	inline void setInitialTransform(float* t) { m_initialTransformMtx = t; };
-
-	void setInitialOriginPosition(float x, float y, float z) {
-		float m[] = {
-			1, 0, 0, x,
-			0, 1, 0, y,
-			0, 0, 0, z,
-			0, 0, 0, 1,
-		};
-		setInitialTransform(m);
-	}
-protected:
-	Context m_context;
-	Transform m_transform;
-
-	float* m_initialTransformMtx;
-
-	btRigidBody* m_rigidBody;
-
-	btScalar m_mass;
-
-	std::string m_renderObjFilename;
 	std::string m_physicsObjFilename;
-	std::string m_diffuseMapFilename;
-	std::string m_normalMapFilename;
-	std::string m_specularMapFilename;
-
-	float3 m_ka;
-	float3 m_kr;
-	float m_ns;
+protected:
+	btRigidBody* m_rigidBody;
 };
 
-class BowlingPin : public SceneObject {
+class BowlingPin : public PhysicalObject {
 public:
-	BowlingPin(Context c) : SceneObject(c) {
+	BowlingPin(Context c) : PhysicalObject(c) {
 		m_mass = 1;
 
 		m_ka = make_float3(0.2, 0.2, 0.2);
@@ -180,20 +202,20 @@ public:
 private:
 };
 
-class GroundPlane : public SceneObject {
+class GroundPlane : public PhysicalObject {
 public:
-	GroundPlane(Context c) : SceneObject(c) {
+	GroundPlane(Context c) : PhysicalObject(c) {
 		m_mass = 0;
 
 		m_ka = make_float3(0.2, 0.2, 0.2);
 		m_kr = make_float3(0.3, 0.3, 0.3);
 		m_ns = 20;
 
-		m_renderObjFilename = "/bowling-floor.obj";
+		m_renderObjFilename = "/lane.obj";
 		m_physicsObjFilename = "/bowling-floor.obj";
-		m_diffuseMapFilename = "/brick_diffuse.ppm";
-		m_normalMapFilename = "/brick_normal.ppm";
-		m_specularMapFilename = "/brick_specular.ppm";
+		m_diffuseMapFilename = "/wood_floor_diffuse.ppm";
+		m_normalMapFilename = "/wood_floor_normal.ppm";
+		m_specularMapFilename = "/wood_floor_specular.ppm";
 	}
 
 	virtual void initPhysics(std::string prog_path) {
@@ -207,5 +229,7 @@ public:
 
 private:
 };
+
+
 
 #endif

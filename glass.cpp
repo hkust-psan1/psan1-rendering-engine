@@ -313,8 +313,8 @@ void  GlassScene::createContext( InitialCameraData& camera_data )
   { 
     { make_float3( -30.0f,  20.0f, -80.0f ), make_float3( 0.6f, 0.5f, 0.4f ), 1 },
     { make_float3( -30.0f,  -20.0f, -80.0f ), make_float3( 0.6f, 0.5f, 0.4f ), 1 },
-    /* { make_float3(  10.5f,  30.0f, 20.5f ), make_float3( 0.65f, 0.65f, 0.6f ), 1 }
-    make_float3(  10.5f,  30.0f, 20.4f ), make_float3( 0.025f, 0.025f, 0.027f ), 1 },
+    { make_float3(  10.5f,  30.0f, 20.5f ), make_float3( 0.65f, 0.65f, 0.6f ), 1 },
+    /* { make_float3(  10.5f,  30.0f, 20.4f ), make_float3( 0.025f, 0.025f, 0.027f ), 1 },
     { make_float3(  10.5f,  30.0f, 20.3f ), make_float3( 0.025f, 0.025f, 0.027f ), 1 },
     { make_float3(  10.5f,  30.0f, 20.2f ), make_float3( 0.025f, 0.025f, 0.027f ), 1 },
     { make_float3(  10.5f,  30.0f, 20.1f ), make_float3( 0.025f, 0.025f, 0.027f ), 1 },
@@ -470,6 +470,13 @@ void GlassScene::initObjects(const std::string& res_path) {
 	groundPlane->initGraphics(mesh_path, mat_path, res_path);
 	groundPlane->initPhysics(res_path);
 
+	NonPhysicalObject* banner = new NonPhysicalObject(m_context);
+	banner->m_renderObjFilename = "/banner.obj";
+	banner->m_diffuseMapFilename = "/banner_diffuse.ppm";
+	banner->initGraphics(mesh_path, mat_path, res_path);
+
+	NonPhysicalObject* ditch = new NonPhysicalObject(m_context);
+
 	btDbvtBroadphase* broadPhase = new btDbvtBroadphase();
 
 	btDefaultCollisionConfiguration* collisionConfiguration = new btDefaultCollisionConfiguration();
@@ -482,9 +489,10 @@ void GlassScene::initObjects(const std::string& res_path) {
 	world->addRigidBody(groundPlane->getRigidBody());
 
 	g = m_context->createGroup();
-	g->setChildCount(2);
+	g->setChildCount(3);
 	g->setChild<Transform>(0, pin->getTransform());
 	g->setChild<Transform>(1, groundPlane->getTransform());
+	g->setChild<Transform>(2, banner->getTransform());
 
 	g->setAcceleration(m_context->createAcceleration("Bvh", "Bvh"));
 
@@ -622,7 +630,7 @@ void GlassScene::createGeometry( Material material[], const std::string& path )
      3,  0,  0, 0, 
      0,  0,  0,  1 };
   optix::Matrix4x4 mFloor(matrixFloor);
-  ObjLoader floorObj( (path + "/bowling-floor.obj").c_str(), m_context, geomgroup[10], material[0] );
+  ObjLoader floorObj( (path + "/floor.obj").c_str(), m_context, geomgroup[10], material[0] );
   floorObj.setIntersectProgram( mesh_intersect );
   floorObj.load(mFloor);
 
