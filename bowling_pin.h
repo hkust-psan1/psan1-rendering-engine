@@ -92,21 +92,6 @@ public:
 
 	inline Transform getTransform() const { return m_transform; };
 
-	/*
-	inline void setInitialTransform(float* t) { m_initialTransformMtx = t; };
-
-	void setInitialOriginPosition(float x, float y, float z) {
-		float m[] = {
-			1, 0, 0, x,
-			0, 1, 0, y,
-			0, 0, 0, z,
-			0, 0, 0, 1,
-		};
-		setInitialTransform(m);
-	}
-	*/
-
-
 	btScalar m_mass;
 
 	std::string m_renderObjFilename;
@@ -198,10 +183,10 @@ public:
 		m_rigidBody = new btRigidBody(info);
 	}
 	
-	void setInitialPosition(float x, float y, float z) {
+	void setInitialPosition(float3 pos) {
 		btTransform t;
 		t.setIdentity();
-		t.setOrigin(btVector3(x, y, z));
+		t.setOrigin(btVector3(pos.x, pos.y, pos.z));
 		m_rigidBody->setWorldTransform(t);
 	}
 
@@ -240,7 +225,7 @@ protected:
 class Ball : public PhysicalObject {
 public:
 	Ball(Context c) : PhysicalObject(c) {
-		m_mass = 3;
+		m_mass = 5;
 
 		m_kr = make_float3(0.3, 0.3, 0.3);
 		m_ns = 10;

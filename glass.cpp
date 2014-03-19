@@ -120,9 +120,7 @@ private:
 
   btDiscreteDynamicsWorld* world;
 
-  BowlingPin* pin;
-  GroundPlane* groundPlane;
-  Ball* ball;
+  std::vector<SceneObject*> sceneObjects;
 
   Group g;
 };
@@ -166,36 +164,19 @@ Buffer GlassScene::getOutputBuffer()
 
 void GlassScene::trace( const RayGenCameraData& camera_data )
 {
+	/* apply transformation obtained from bullet physics */
 	world->stepSimulation(1 / 300.f, 10);
 
-	pin->step();
-	groundPlane->step();
-	ball->step();
+	for (int i = 0; i < sceneObjects.size(); i++) {
+		PhysicalObject* po = dynamic_cast<PhysicalObject*>(sceneObjects[i]);
+		if (po) {
+			po->step();
+		}
+	}
 
 	g->getAcceleration()->markDirty();
 
-	/*
-	btTransform trans;
-	pin->getRigidBody()->getMotionState()->getWorldTransform(trans);
-
-	Transform optixTrans = pin->getTransform();
-
-	// printf("y: %.3f\n", trans.getOrigin().getY());
-
-	float m[] = {
-		1, 0, 0, trans.getOrigin().getX(),
-		0, 1, 0, trans.getOrigin().getY(),
-		0, 0, 1, trans.getOrigin().getZ(),
-		0, 0, 0, 1
-	};
-
-	// Matrix4x4 tMatrix(m);
-	optixTrans->setMatrix(false, m, NULL);
-	Acceleration acc = optixTrans->getChild<GeometryGroup>()->getAcceleration();
-	*/
-	// acc->markDirty();
-
-
+	/* Optix rendering settings */
   if ( m_camera_changed ) 
   {
     m_frame_number = 0u;
@@ -459,25 +440,49 @@ void GlassScene::createMaterials( Material material[] )
 }
 
 void GlassScene::initObjects(const std::string& res_path) {
+	const float pinRadius = 0.44; // from the obj file
+	const float pinDistance = 0.44 * 12 / (4.75 / 2); // 12 inches distance with 4.75 inches diameter
+	const float unitX = pinDistance * 1.73205 / 2;
+	const float unitZ = pinDistance / 2;
+
 	std::vector<RectangleLight> areaLights;
 
 	std::string mesh_path = ptxpath( "glass", "triangle_mesh_iterative.cu" );
 	std::string mat_path = ptxpath("glass", "checkerboard.cu");
 
-	pin = new BowlingPin(m_context);
-	pin->initGraphics(mesh_path, mat_path, res_path);
-	pin->initPhysics(res_path);
-	pin->setInitialPosition(10, 0, 0.5);
+	float3 pinBasePosition = make_float3(10, 0, 0);
+	float3 pinPositions[10] = {
+		make_float3(0, 0, 0) + pinBasePosition,
+		make_float3(unitX, 0, unitZ) + pinBasePosition,
+		make_float3(unitX, 0, - unitZ) + pinBasePosition,
+		make_float3(2 * unitX, 0, 2 * unitZ) + pinBasePosition,
+		make_float3(2 * unitX, 0, 0) + pinBasePosition,
+		make_float3(2 * unitX, 0, - 2 * unitZ) + pinBasePosition,
+		make_float3(3 * unitX, 0, - 3 * unitZ) + pinBasePosition,
+		make_float3(3 * unitX, 0, - 1 * unitZ) + pinBasePosition,
+		make_float3(3 * unitX, 0, 1 * unitZ) + pinBasePosition,
+		make_float3(3 * unitX, 0, 3 * unitZ) + pinBasePosition,
+	};
 
-	groundPlane = new GroundPlane(m_context);
+	for (int i = 0; i < 10; i++) {
+		BowlingPin* pin = new BowlingPin(m_context);
+		pin->initGraphics(mesh_path, mat_path, res_path);
+		pin->initPhysics(res_path);
+		pin->setInitialPosition(pinPositions[i]);
+		sceneObjects.push_back(pin); 
+	}
+
+	GroundPlane* groundPlane = new GroundPlane(m_context);
 	groundPlane->initGraphics(mesh_path, mat_path, res_path);
 	groundPlane->initPhysics(res_path);
+	sceneObjects.push_back(groundPlane);
 
-	ball = new Ball(m_context);
+	Ball* ball = new Ball(m_context);
 	ball->initGraphics(mesh_path, mat_path, res_path);
 	ball->initPhysics(res_path);
-	ball->setInitialPosition(-10, 0, 0);
-	ball->getRigidBody()->setLinearVelocity(btVector3(10, 0, 0));
+	ball->setInitialPosition(make_float3(-10, 0, 0));
+	ball->getRigidBody()->setLinearVelocity(btVector3(50, 0, 1));
+	sceneObjects.push_back(ball);
 
 	SceneObject* banner = new SceneObject(m_context);
 	banner->m_renderObjFilename = "/banner.obj";
@@ -512,11 +517,26 @@ void GlassScene::initObjects(const std::string& res_path) {
 	btSequentialImpulseConstraintSolver* solver = new btSequentialImpulseConstraintSolver;
 
 	world = new btDiscreteDynamicsWorld(dispatcher, broadPhase, solver, collisionConfiguration);
+	for (int i = 0; i < sceneObjects.size(); i++) {
+		PhysicalObject* po = dynamic_cast<PhysicalObject*>(sceneObjects[i]);
+		if (po) {
+			world->addRigidBody(po->getRigidBody());
+		}
+	}
+	/*
 	world->addRigidBody(pin->getRigidBody());
 	world->addRigidBody(groundPlane->getRigidBody());
 	world->addRigidBody(ball->getRigidBody());
+	*/
 
 	g = m_context->createGroup();
+	g->setChildCount(sceneObjects.size());
+
+	for (int i = 0; i < sceneObjects.size(); i++) {
+		g->setChild<Transform>(i, sceneObjects[i]->getTransform());
+	}
+
+	/*
 	g->setChildCount(8);
 	g->setChild<Transform>(0, pin->getTransform());
 	g->setChild<Transform>(1, groundPlane->getTransform());
@@ -526,6 +546,7 @@ void GlassScene::initObjects(const std::string& res_path) {
 	g->setChild<Transform>(5, side_floor->getTransform());
 	g->setChild<Transform>(6, sample_light->getTransform());
 	g->setChild<Transform>(7, ball->getTransform());
+	*/
 
 	g->setAcceleration(m_context->createAcceleration("Bvh", "Bvh"));
 
