@@ -92,6 +92,7 @@ public:
 
 	inline Transform getTransform() const { return m_transform; };
 
+	/*
 	inline void setInitialTransform(float* t) { m_initialTransformMtx = t; };
 
 	void setInitialOriginPosition(float x, float y, float z) {
@@ -103,6 +104,8 @@ public:
 		};
 		setInitialTransform(m);
 	}
+	*/
+
 
 	btScalar m_mass;
 
@@ -195,15 +198,33 @@ public:
 		m_rigidBody = new btRigidBody(info);
 	}
 	
+	void setInitialPosition(float x, float y, float z) {
+		btTransform t;
+		t.setIdentity();
+		t.setOrigin(btVector3(x, y, z));
+		m_rigidBody->setWorldTransform(t);
+	}
+
 	void step() {
 		btTransform trans;
 		m_rigidBody->getMotionState()->getWorldTransform(trans);
 
+		btVector3 origin = trans.getOrigin();
+		float tx = origin.getX();
+		float ty = origin.getY();
+		float tz = origin.getZ();
+
+		btQuaternion quaternion = trans.getRotation();
+		float qx = quaternion.getX();
+		float qy = quaternion.getY();
+		float qz = quaternion.getZ();
+		float qw = quaternion.getW();
+
 		float m[] = {
-			1, 0, 0, trans.getOrigin().getX(),
-			0, 1, 0, trans.getOrigin().getY(),
-			0, 0, 1, trans.getOrigin().getZ(),
-			0, 0, 0, 1
+			1.0f - 2.0f*qy*qy - 2.0f*qz*qz,		2.0f*qx*qy - 2.0f*qz*qw,			2.0f*qx*qz + 2.0f*qy*qw,			tx,
+			2.0f*qx*qy + 2.0f*qz*qw,			1.0f - 2.0f*qx*qx - 2.0f*qz*qz,		2.0f*qy*qz - 2.0f*qx*qw,			ty,
+			2.0f*qx*qz - 2.0f*qy*qw,			2.0f*qy*qz + 2.0f*qx*qw,			1.0f - 2.0f*qx*qx - 2.0f*qy*qy,		tz,
+			0.0f,								0.0f,								0.0f,								1.0f
 		};
 
 		m_transform->setMatrix(false, m, NULL);
@@ -216,12 +237,35 @@ protected:
 	btRigidBody* m_rigidBody;
 };
 
+class Ball : public PhysicalObject {
+public:
+	Ball(Context c) : PhysicalObject(c) {
+		m_mass = 3;
+
+		m_kr = make_float3(0.3, 0.3, 0.3);
+		m_ns = 10;
+
+		m_renderObjFilename = "/bowling_ball.obj";
+	}
+
+	virtual void initPhysics(std::string prog_path) {
+		btCollisionShape* sphereShape = new btSphereShape(1);
+		btDefaultMotionState* state = new btDefaultMotionState(btTransform(btQuaternion(0, 0, 0, 1), btVector3(0, 0, 0)));
+
+		btVector3 inertia(0, 0, 0);
+		sphereShape->calculateLocalInertia(1, inertia);
+
+		btRigidBody::btRigidBodyConstructionInfo info(1, state, sphereShape, inertia);
+
+		m_rigidBody = new btRigidBody(info);
+	}
+};
+
 class BowlingPin : public PhysicalObject {
 public:
 	BowlingPin(Context c) : PhysicalObject(c) {
 		m_mass = 1;
 
-		m_ka = make_float3(0.2, 0.2, 0.2);
 		m_kr = make_float3(0, 0, 0);
 		m_ns = 10;
 
@@ -254,7 +298,7 @@ public:
 
 		m_ka = make_float3(0.2, 0.2, 0.2);
 		m_kr = make_float3(0.3, 0.3, 0.3);
-		m_ns = 20;
+		m_ns = 5;
 
 		m_renderObjFilename = "/lane.obj";
 		m_physicsObjFilename = "/bowling-floor.obj";

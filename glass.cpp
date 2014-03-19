@@ -122,6 +122,7 @@ private:
 
   BowlingPin* pin;
   GroundPlane* groundPlane;
+  Ball* ball;
 
   Group g;
 };
@@ -169,6 +170,7 @@ void GlassScene::trace( const RayGenCameraData& camera_data )
 
 	pin->step();
 	groundPlane->step();
+	ball->step();
 
 	g->getAcceleration()->markDirty();
 
@@ -463,13 +465,19 @@ void GlassScene::initObjects(const std::string& res_path) {
 	std::string mat_path = ptxpath("glass", "checkerboard.cu");
 
 	pin = new BowlingPin(m_context);
-	pin->setInitialOriginPosition(0, 5, 0);
 	pin->initGraphics(mesh_path, mat_path, res_path);
 	pin->initPhysics(res_path);
+	pin->setInitialPosition(10, 0, 0.5);
 
 	groundPlane = new GroundPlane(m_context);
 	groundPlane->initGraphics(mesh_path, mat_path, res_path);
 	groundPlane->initPhysics(res_path);
+
+	ball = new Ball(m_context);
+	ball->initGraphics(mesh_path, mat_path, res_path);
+	ball->initPhysics(res_path);
+	ball->setInitialPosition(-10, 0, 0);
+	ball->getRigidBody()->setLinearVelocity(btVector3(10, 0, 0));
 
 	SceneObject* banner = new SceneObject(m_context);
 	banner->m_renderObjFilename = "/banner.obj";
@@ -506,9 +514,10 @@ void GlassScene::initObjects(const std::string& res_path) {
 	world = new btDiscreteDynamicsWorld(dispatcher, broadPhase, solver, collisionConfiguration);
 	world->addRigidBody(pin->getRigidBody());
 	world->addRigidBody(groundPlane->getRigidBody());
+	world->addRigidBody(ball->getRigidBody());
 
 	g = m_context->createGroup();
-	g->setChildCount(7);
+	g->setChildCount(8);
 	g->setChild<Transform>(0, pin->getTransform());
 	g->setChild<Transform>(1, groundPlane->getTransform());
 	g->setChild<Transform>(2, banner->getTransform());
@@ -516,6 +525,7 @@ void GlassScene::initObjects(const std::string& res_path) {
 	g->setChild<Transform>(4, ditch_bar->getTransform());
 	g->setChild<Transform>(5, side_floor->getTransform());
 	g->setChild<Transform>(6, sample_light->getTransform());
+	g->setChild<Transform>(7, ball->getTransform());
 
 	g->setAcceleration(m_context->createAcceleration("Bvh", "Bvh"));
 

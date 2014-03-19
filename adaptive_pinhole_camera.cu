@@ -152,8 +152,8 @@ RT_PROGRAM void pinhole_camera()
   
     // Add in new ray's contribution
     volatile unsigned int ns = num_samples_buffer[ launch_index ] & ~0x80000000; // volatile workaround for Cuda 2.0 bug
-    float  new_value_weight = 1.0f / (float)ns;
-    // float  new_value_weight = 1.0f;
+    // float  new_value_weight = 1.0f / (float)ns;
+    float  new_value_weight = 1.0f;
     float  old_value_weight = 1.0f - new_value_weight;
     float4& old_bytes = output_buffer[ launch_index ];
     float3 old_color = make_float3(old_bytes.x, old_bytes.y, old_bytes.z);
