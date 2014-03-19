@@ -89,7 +89,6 @@ private:
 
   void createContext( SampleScene::InitialCameraData& camera_data );
   void createMaterials(Material material[] );
-  void createGeometry( Material material[], const std::string& path );
 
   // Helper functions
   void makeMaterialPrograms( Material material, const char *filename,
@@ -481,7 +480,7 @@ void GlassScene::initObjects(const std::string& res_path) {
 	ball->initGraphics(mesh_path, mat_path, res_path);
 	ball->initPhysics(res_path);
 	ball->setInitialPosition(make_float3(-10, 0, 0));
-	ball->getRigidBody()->setLinearVelocity(btVector3(50, 0, 1));
+	ball->getRigidBody()->setLinearVelocity(btVector3(100, 0, 1));
 	sceneObjects.push_back(ball);
 
 	SceneObject* banner = new SceneObject(m_context);
@@ -523,11 +522,6 @@ void GlassScene::initObjects(const std::string& res_path) {
 			world->addRigidBody(po->getRigidBody());
 		}
 	}
-	/*
-	world->addRigidBody(pin->getRigidBody());
-	world->addRigidBody(groundPlane->getRigidBody());
-	world->addRigidBody(ball->getRigidBody());
-	*/
 
 	g = m_context->createGroup();
 	g->setChildCount(sceneObjects.size());
@@ -535,18 +529,6 @@ void GlassScene::initObjects(const std::string& res_path) {
 	for (int i = 0; i < sceneObjects.size(); i++) {
 		g->setChild<Transform>(i, sceneObjects[i]->getTransform());
 	}
-
-	/*
-	g->setChildCount(8);
-	g->setChild<Transform>(0, pin->getTransform());
-	g->setChild<Transform>(1, groundPlane->getTransform());
-	g->setChild<Transform>(2, banner->getTransform());
-	g->setChild<Transform>(3, ditch->getTransform());
-	g->setChild<Transform>(4, ditch_bar->getTransform());
-	g->setChild<Transform>(5, side_floor->getTransform());
-	g->setChild<Transform>(6, sample_light->getTransform());
-	g->setChild<Transform>(7, ball->getTransform());
-	*/
 
 	g->setAcceleration(m_context->createAcceleration("Bvh", "Bvh"));
 
@@ -562,211 +544,6 @@ void GlassScene::initObjects(const std::string& res_path) {
 	memcpy(areaLightBuffer->map(), areaLightArray, sizeof(RectangleLight) * areaLights.size());
 	areaLightBuffer->unmap();
 	m_context["area_lights"]->set(areaLightBuffer);
-}
-
-void GlassScene::createGeometry( Material material[], const std::string& path )
-{
-  // Load OBJ files and set as geometry groups
-  GeometryGroup geomgroup[11] =
-  { m_context->createGeometryGroup(),
-    m_context->createGeometryGroup(),
-    m_context->createGeometryGroup(),
-	m_context->createGeometryGroup(),
-	m_context->createGeometryGroup(),
-	m_context->createGeometryGroup(),
-	m_context->createGeometryGroup(),
-	m_context->createGeometryGroup(),
-	m_context->createGeometryGroup(),
-	m_context->createGeometryGroup(),
-	m_context->createGeometryGroup()};
-
-  // Set transformations
-  const float sqrt3 = 1.73205080757f;
-  const float matrix[10][4*4] = 
- {
-	{ 1,  0,  0,  0, 
-     0,  1,  0,  0, 
-     0,  0,  1, -7.5f, 
-     0,  0,  0,  1 },
-
-	{ 1,  0,  0,  0, 
-     0,  1,  0,  0, 
-     0,  0,  1, -2.5f, 
-     0,  0,  0,  1 },
-
-	 { 1,  0,  0,  0, 
-     0,  1,  0,  0, 
-     0,  0,  1, 2.5f, 
-     0,  0,  0,  1 },
-
-	 { 1,  0,  0,  0, 
-     0,  1,  0,  0, 
-     0,  0,  1, 7.5f, 
-     0,  0,  0,  1 },
-
-	 { 1,  0,  0,  2.5f*sqrt3, 
-     0,  1,  0,  0, 
-     0,  0,  1, -5, 
-     0,  0,  0,  1 },
-
-	 { 1,  0,  0,  2.5f*sqrt3, 
-     0,  1,  0,  0, 
-     0,  0,  1, 0, 
-     0,  0,  0,  1 },
-
-	 { 1,  0,  0,  2.5f*sqrt3, 
-     0,  1,  0,  0, 
-     0,  0,  1, 5, 
-     0,  0,  0,  1 },
-	 	
-	{ 1,  0,  0,  5*sqrt3, 
-     0,  1,  0,  0, 
-     0,  0,  1, -2.5f, 
-     0,  0,  0,  1 },
-	 
-	{ 1,  0,  0,  5*sqrt3, 
-     0,  1,  0,  0, 
-     0,  0,  1, 2.5f, 
-     0,  0,  0,  1 },
-	 
-	{ 1,  0,  0,  7.5f*sqrt3, 
-     0,  1,  0,  0, 
-     0,  0,  1, 0, 
-     0,  0,  0,  1 },
-
-  };
-
-
-  optix::Matrix4x4 m[10];
-  for (int i = 0; i < 10; i++)
-  {
-	  m[i] = Matrix4x4(matrix[i]);
-  }
-
-  // std::string sphere_path = ptxpath("glass", "sphere.cu");
-  // Program sphere_intersect_program = m_context->createProgramFromPTXFile( sphere_path, "intersect" );
-
-  // changed, use .cu file instead of compiled .ptx file
-  std::string         mesh_path = ptxpath( "glass", "triangle_mesh_iterative.cu" );
-  std::string         mat_path = ptxpath( "glass", "checkerboard.cu" );
-  // std::string prog_path = std::string(sutilSamplesPtxDir()) + "/glass_generated_triangle_mesh_iterative.cu.ptx";
-
-  BowlingPin* pin = new BowlingPin(m_context);
-  pin->initGraphics(mesh_path, mat_path, path);
-  pin->initPhysics(path);
-
-  btDbvtBroadphase* broadPhase = new btDbvtBroadphase();
-
-	btDefaultCollisionConfiguration* collisionConfiguration = new btDefaultCollisionConfiguration();
-	btCollisionDispatcher* dispatcher = new btCollisionDispatcher(collisionConfiguration);
-
-	btSequentialImpulseConstraintSolver* solver = new btSequentialImpulseConstraintSolver;
-
-	btDiscreteDynamicsWorld* world = new btDiscreteDynamicsWorld(dispatcher, broadPhase, solver, collisionConfiguration);
-	world->addRigidBody(pin->getRigidBody());
-
-	for (int i = 0; i < 10; i++) {
-		world->stepSimulation(1 / 60.0f, 10);
-
-		btTransform trans;
-		pin->getRigidBody()->getMotionState()->getWorldTransform(trans);
-
-		printf("%.3f\n", trans.getOrigin().getY());
-	}
-
-  Program mesh_intersect = m_context->createProgramFromPTXFile( mesh_path, "mesh_intersect" );
-
-  // fprintf(stderr, "prog_path: %s\n\n", prog_path.c_str());
-  // fprintf(stderr, "path: %s\n\n", path.c_str());
-  ObjLoader** objloader = new ObjLoader*[10];
-  for(int i = 0; i < 10; i++)
-  {
-	  objloader[i] = new ObjLoader( (path + "/pin.obj").c_str(), m_context, geomgroup[i], material[1] );
-	  objloader[i]->setIntersectProgram( mesh_intersect );
-	  objloader[i]->load( m[i] );
-	  Geometry pin = geomgroup[i]->getChild(0)->getGeometry();
-	  // pin["something"]->setFloat(0, 0, 0);
-  }
-
-  float matrixFloor[] = 
-	{ 0,  0,  7,  100, 
-     0,  1,  0,  -4.9f, 
-     3,  0,  0, 0, 
-     0,  0,  0,  1 };
-  optix::Matrix4x4 mFloor(matrixFloor);
-  ObjLoader floorObj( (path + "/floor.obj").c_str(), m_context, geomgroup[10], material[0] );
-  floorObj.setIntersectProgram( mesh_intersect );
-  floorObj.load(mFloor);
-
-	Geometry floor = geomgroup[10]->getChild(0)->getGeometry();
-	// floor["something"]->setFloat(10, 10, 10);
-	float anotherTransformation[] = {
-	 1,  0,  0,  0, 
-     0,  1,  0,  0, 
-     0,  0,  1, 0, 
-     0,  0,  0,  1
-	};
-
-    float matrixBall[] = 
-	{ 3,  0,  0,  20, 
-     0,  3,  0,  0, 
-     0,  0,  3, 0, 
-     0,  0,  0,  1 };
-  optix::Matrix4x4 mBall(matrixBall);
-
-  GeometryGroup ballGroup = m_context->createGeometryGroup();
-
-  ObjLoader ballObj( (path + "/bowling-ball.obj").c_str(), m_context, ballGroup, material[2] );
-  ballObj.setIntersectProgram( mesh_intersect );
-  ballObj.load(mBall);
-
-  Transform t = m_context->createTransform();
-  t->setMatrix(false, anotherTransformation, NULL);
-  t->setChild(ballGroup);
-
-  // Geometry ball = ballGroup->getChild(0)->getGeometry();
-
-  // ball["something"]->setFloat(0, 0, 0);
-
-  /*
-  Geometry table = m_context->createGeometry();
-  table->setPrimitiveCount(1u);
-
-  Program table_ch = m_context->createProgramFromPTXFile(ptxpath("glass", "table.cu"), "closest_hit_radiance");
-  Program table_ah = m_context->createProgramFromPTXFile(ptxpath("glass", "table.cu"), "any_hit_shadow" );
-
-  Material table_mat = m_context->createMaterial();
-  table_mat->setClosestHitProgram(0, table_ah);
-  table_mat->setAnyHitProgram(1, table_ah);
-  */
-
-  GeometryGroup maingroup = m_context->createGeometryGroup();
-
-  Group g = m_context->createGroup();
-  g->setChildCount(2);
-  g->setChild<Transform>(0, t);
-  // g->setChild<GeometryGroup>(0, ballGroup);
-
-  g->setAcceleration(m_context->createAcceleration("Bvh", "Bvh"));
-  m_context["top_object"]->set(g);
-  m_context["top_shadower"]->set(g);
-
-  g->setChild<Transform>(1, pin->getTransform());
-
-  /*
-  maingroup->setChildCount( 12 );
-  for(int i = 0; i < 11; i++)
-  {
-	maingroup->setChild( i, geomgroup[i]->getChild(0) );
-  }
-  // maingroup->setChild(11, ballGroup->getChild(0));
-  // maingroup->setChild(11, t->getChild<GeometryGroup>()->getChild(0));
-  maingroup->setChild(11, t);
-
-  maingroup->setAcceleration( m_context->createAcceleration("Bvh","Bvh") );
-  m_context["top_object"]->set( maingroup );
-  m_context["top_shadower"]->set( maingroup );
-  */
 }
 
 

@@ -205,6 +205,7 @@ public:
 		float qz = quaternion.getZ();
 		float qw = quaternion.getW();
 
+		// calculate transformation matrix according to quaternion
 		float m[] = {
 			1.0f - 2.0f*qy*qy - 2.0f*qz*qz,		2.0f*qx*qy - 2.0f*qz*qw,			2.0f*qx*qz + 2.0f*qy*qw,			tx,
 			2.0f*qx*qy + 2.0f*qz*qw,			1.0f - 2.0f*qx*qx - 2.0f*qz*qz,		2.0f*qy*qz - 2.0f*qx*qw,			ty,
@@ -225,7 +226,7 @@ protected:
 class Ball : public PhysicalObject {
 public:
 	Ball(Context c) : PhysicalObject(c) {
-		m_mass = 5;
+		m_mass = 20;
 
 		m_kr = make_float3(0.3, 0.3, 0.3);
 		m_ns = 10;
