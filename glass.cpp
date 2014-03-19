@@ -470,12 +470,30 @@ void GlassScene::initObjects(const std::string& res_path) {
 	groundPlane->initGraphics(mesh_path, mat_path, res_path);
 	groundPlane->initPhysics(res_path);
 
-	NonPhysicalObject* banner = new NonPhysicalObject(m_context);
+	SceneObject* banner = new SceneObject(m_context);
 	banner->m_renderObjFilename = "/banner.obj";
 	banner->m_diffuseMapFilename = "/banner_diffuse.ppm";
 	banner->initGraphics(mesh_path, mat_path, res_path);
 
-	NonPhysicalObject* ditch = new NonPhysicalObject(m_context);
+	SceneObject* ditch = new SceneObject(m_context);
+	ditch->m_renderObjFilename = "/ditch.obj";
+	ditch->m_kd = make_float3(0.05, 0.05, 0.05);
+	ditch->m_ks = make_float3(0.5, 0.5, 0.5);
+	ditch->m_kr = make_float3(0.2, 0.2, 0.2);
+	ditch->initGraphics(mesh_path, mat_path, res_path);
+
+	SceneObject* ditch_bar = new SceneObject(m_context);
+	ditch_bar->m_renderObjFilename = "/ditch_bar.obj";
+	ditch_bar->initGraphics(mesh_path, mat_path, res_path);
+
+	SceneObject* side_floor = new SceneObject(m_context);
+	side_floor->m_renderObjFilename = "/side_floor.obj";
+	side_floor->initGraphics(mesh_path, mat_path, res_path);
+
+	EmissiveObject* sample_light = new EmissiveObject(m_context);
+	sample_light->m_renderObjFilename = "/sample_light.obj";
+	sample_light->initGraphics(mesh_path, mat_path, res_path);
+	sample_light->createAreaLight();
 
 	btDbvtBroadphase* broadPhase = new btDbvtBroadphase();
 
@@ -489,10 +507,14 @@ void GlassScene::initObjects(const std::string& res_path) {
 	world->addRigidBody(groundPlane->getRigidBody());
 
 	g = m_context->createGroup();
-	g->setChildCount(3);
+	g->setChildCount(7);
 	g->setChild<Transform>(0, pin->getTransform());
 	g->setChild<Transform>(1, groundPlane->getTransform());
 	g->setChild<Transform>(2, banner->getTransform());
+	g->setChild<Transform>(3, ditch->getTransform());
+	g->setChild<Transform>(4, ditch_bar->getTransform());
+	g->setChild<Transform>(5, side_floor->getTransform());
+	g->setChild<Transform>(6, sample_light->getTransform());
 
 	g->setAcceleration(m_context->createAcceleration("Bvh", "Bvh"));
 

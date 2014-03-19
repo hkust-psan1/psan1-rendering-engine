@@ -12,17 +12,31 @@
 
 #include <cd_wavefront.h>
 
+#include <assert.h>
+
 using namespace optix;
 
 class SceneObject {
 public:
 	SceneObject(Context c) : m_context(c), m_mass(0) {
 		m_initialTransformMtx = NULL;
+
+		m_emissive = false;
+
+		m_ke = make_float3(0, 0, 0);
+		m_ka = make_float3(0.2, 0.2, 0.2);
+		m_kd = make_float3(0.5, 0.5, 0.5);
+		m_ks = make_float3(0.8, 0.8, 0.8);
+		m_kr = make_float3(0, 0, 0);
+		m_ns = 10;
+
+		// m_normalMapFilename = "/default_normal.ppm";
+		// m_specularMapFilename = "/default_specular.ppm";
 	}
 
-
-
 	virtual void initGraphics(std::string prog_path, std::string mat_path, std::string res_path) {
+		m_objPath = res_path + m_renderObjFilename;
+
 		Material mat = m_context->createMaterial();
 
 		Program closestHit = m_context->createProgramFromPTXFile(mat_path, "closest_hit_radiance");
@@ -31,8 +45,12 @@ public:
 		mat->setClosestHitProgram(0, closestHit);
 		mat->setAnyHitProgram(1, anyHit);
 
-		mat["ka"]->setFloat(m_ka);
-		mat["kr"]->setFloat(m_kr);
+		mat["is_emissive"]->setInt(m_emissive);
+		mat["k_emission"]->setFloat(m_ke);
+		mat["k_ambient"]->setFloat(m_ka);
+		mat["k_diffuse"]->setFloat(m_kd);
+		mat["k_specular"]->setFloat(m_ks);
+		mat["k_reflective"]->setFloat(m_kr);
 		mat["ns"]->setInt(m_ns);
 
 		mat["importance_cutoff"]->setFloat( 0.01f );
@@ -48,14 +66,17 @@ public:
 		mat["normal_map"]->setTextureSampler(loadTexture(m_context, 
 			"D:/OptiX SDK 3.0.1/SDK - Copy/glass/" + m_normalMapFilename, 
 			make_float3(1, 1, 1)));
-		mat["has_normal_map"]->setInt(0);
+
+		mat["has_diffuse_map"]->setInt(!m_diffuseMapFilename.empty());
+		mat["has_normal_map"]->setInt(!m_normalMapFilename.empty());
+		mat["has_specular_map"]->setInt(!m_specularMapFilename.empty());
 
 		Program mesh_intersect = m_context->createProgramFromPTXFile(prog_path, "mesh_intersect");
 		Program mesh_bounds = m_context->createProgramFromPTXFile(prog_path, "mesh_bounds");
 
 		GeometryGroup group = m_context->createGeometryGroup();
 
-		ObjLoader loader((res_path + m_renderObjFilename).c_str(), m_context, group, mat);
+		ObjLoader loader(m_objPath.c_str(), m_context, group, mat);
 		loader.setIntersectProgram(mesh_intersect);
 		loader.setBboxProgram(mesh_bounds);
 		loader.load();
@@ -90,7 +111,11 @@ public:
 	std::string m_normalMapFilename;
 	std::string m_specularMapFilename;
 
+	bool m_emissive;
+	float3 m_ke;
 	float3 m_ka;
+	float3 m_kd;
+	float3 m_ks;
 	float3 m_kr;
 	float m_ns;
 
@@ -98,17 +123,37 @@ protected:
 	Context m_context;
 	Transform m_transform;
 	float* m_initialTransformMtx;
+
+	std::string m_objPath;
 };
 
-class NonPhysicalObject : public SceneObject {
+class EmissiveObject : public SceneObject {
 public:
-	NonPhysicalObject(Context c) : SceneObject(c) {
-		m_ka = make_float3(0.2, 0.2, 0.2);
-		m_kr = make_float3(0, 0, 0);
-		m_ns = 10;
+	EmissiveObject(Context c) : SceneObject(c) {
+		m_emissive = true;
+	};
 
-		m_normalMapFilename = "/default_normal.ppm";
-		m_specularMapFilename = "/default_specular.ppm";
+	RectangleLight createAreaLight() {
+		ConvexDecomposition::WavefrontObj wo;
+		wo.loadObj(m_objPath.c_str());
+
+		// now we only support rectangular area light
+		assert(wo.mVertexCount == 4);
+
+		float3 v1 = make_float3(wo.mVertices[0], wo.mVertices[1], wo.mVertices[2]);
+		float3 v2 = make_float3(wo.mVertices[3], wo.mVertices[4], wo.mVertices[5]);
+		float3 v3 = make_float3(wo.mVertices[6], wo.mVertices[7], wo.mVertices[8]);
+		float3 v4 = make_float3(wo.mVertices[9], wo.mVertices[10], wo.mVertices[11]);
+
+		RectangleLight light;
+		light.origin = v1;
+		light.r1 = v2 - v1;
+		light.r2 = v4 - v1;
+
+		// temp value
+		light.emission = make_float3(10, 10, 10);
+
+		return light;
 	}
 };
 
@@ -183,8 +228,8 @@ public:
 		m_renderObjFilename = "/pin.obj";
 		m_physicsObjFilename = "/pin-phy.obj";
 		m_diffuseMapFilename = "/pin-diffuse.ppm";
-		m_normalMapFilename = "/brick_normal.ppm";
-		m_specularMapFilename = "/brick_specular.ppm";
+		// m_normalMapFilename = "/brick_normal.ppm";
+		// m_specularMapFilename = "/brick_specular.ppm";
 	}
 
 	virtual void initPhysics(std::string prog_path) {
@@ -214,8 +259,8 @@ public:
 		m_renderObjFilename = "/lane.obj";
 		m_physicsObjFilename = "/bowling-floor.obj";
 		m_diffuseMapFilename = "/wood_floor_diffuse.ppm";
-		m_normalMapFilename = "/wood_floor_normal.ppm";
-		m_specularMapFilename = "/wood_floor_specular.ppm";
+		// m_normalMapFilename = "/wood_floor_normal.ppm";
+		// m_specularMapFilename = "/wood_floor_specular.ppm";
 	}
 
 	virtual void initPhysics(std::string prog_path) {

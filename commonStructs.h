@@ -44,3 +44,11 @@ struct TriangleLight
   float3 emission;
 };
 
+struct RectangleLight
+{
+#if defined(__cplusplus)
+  typedef optix::float3 float3;
+#endif
+  float3 origin, r1, r2;
+  float3 emission;
+};

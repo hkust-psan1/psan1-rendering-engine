@@ -26,10 +26,10 @@
 
 using namespace optix;
 
-rtDeclareVariable(rtObject,     top_object, , );
-rtDeclareVariable(rtObject,     top_shadower, , );
-rtDeclareVariable(float,        scene_epsilon, , );
-rtDeclareVariable(int,          max_depth, , );
+rtDeclareVariable(rtObject, top_object, , );
+rtDeclareVariable(rtObject, top_shadower, , );
+rtDeclareVariable(float, scene_epsilon, , );
+rtDeclareVariable(int, max_depth, , );
 rtDeclareVariable(unsigned int, radiance_ray_type, , );
 rtDeclareVariable(unsigned int, shadow_ray_type, , );
 rtDeclareVariable(float3, shading_normal, attribute shading_normal, );
@@ -41,25 +41,32 @@ rtDeclareVariable(float3, back_hit_point, attribute back_hit_point, );
 rtDeclareVariable(Ray, ray, rtCurrentRay, );
 rtDeclareVariable(float, isect_dist, rtIntersectionDistance, );
 
-rtDeclareVariable(float3,       tile_size, , ); 
-rtDeclareVariable(float3,       tile_color_dark, , );
-rtDeclareVariable(float3,       tile_color_light, , );
-rtDeclareVariable(float3,       ambient_light_color, , );
-rtDeclareVariable(float3,       ka, , );
-rtDeclareVariable(float3,       kr, , );
-// rtDeclareVariable(float3,       ks, , );
-rtDeclareVariable(int,       ns, , );
+rtDeclareVariable(float3, tile_size, , ); 
+rtDeclareVariable(float3, tile_color_dark, , );
+rtDeclareVariable(float3, tile_color_light, , );
+rtDeclareVariable(float3, ambient_light_color, , );
+
+rtDeclareVariable(int, is_emissive, , );
+
+rtDeclareVariable(float3, k_emission, , );
+rtDeclareVariable(float3, k_ambient, , );
+rtDeclareVariable(float3, k_diffuse, , );
+rtDeclareVariable(float3, k_specular, , );
+rtDeclareVariable(float3, k_reflective, , );
+rtDeclareVariable(int, ns, , );
+
+rtDeclareVariable(float3, texcoord, attribute texcoord, ); 
+rtDeclareVariable(float3, cutoff_color, , );
+rtDeclareVariable(int, reflection_maxdepth, , );
+rtDeclareVariable(float, importance_cutoff, , );
+
+rtDeclareVariable(int, has_diffuse_map, , );
+rtDeclareVariable(int, has_normal_map, , );
+rtDeclareVariable(int, has_specular_map, , );
 
 rtTextureSampler<float4, 2>     kd_map;
 rtTextureSampler<float4, 2>     ks_map;
 rtTextureSampler<float4, 2>		normal_map;
-rtDeclareVariable(float3, texcoord, attribute texcoord, ); 
-rtDeclareVariable(float3,       cutoff_color, , );
-rtDeclareVariable(int,          reflection_maxdepth, , );
-rtDeclareVariable(float,        importance_cutoff, , );
-
-rtDeclareVariable(int, has_normal_map, , );
-
 
 rtBuffer<BasicLight> lights;
 
@@ -101,10 +108,29 @@ RT_PROGRAM void any_hit_shadow()
 
 RT_PROGRAM void closest_hit_radiance()
 {
+  if (is_emissive) {
+	prd_radiance.result = make_float3(1, 1, 1);
+	return;
+  }
+
   const float3 i = ray.direction; 
   const float3 uvw = texcoord;
-  const float3 kd = make_float3( tex2D( kd_map, uvw.x, uvw.y ) );
-  const float3 ks = make_float3( tex2D( ks_map, uvw.x, uvw.y ) );
+
+  float3 kd;
+  if (has_diffuse_map) {
+	  kd = make_float3( tex2D( kd_map, uvw.x, uvw.y ) );
+  } else {
+	  kd = k_diffuse;
+  }
+
+  float3 ks;
+  if (has_specular_map) {
+	  ks = make_float3( tex2D( ks_map, uvw.x, uvw.y ) );
+  } else {
+	  ks = k_specular;
+  }
+
+  float3 kr = k_reflective;
 
   const float3 T = normalize(rtTransformNormal(RT_OBJECT_TO_WORLD, tangent)); // tangent  
   const float3 B = normalize(rtTransformNormal(RT_OBJECT_TO_WORLD, bitangent)); // bitangent  
