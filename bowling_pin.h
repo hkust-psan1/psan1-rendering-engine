@@ -146,12 +146,12 @@ public:
 		float3 v4 = make_float3(wo.mVertices[9], wo.mVertices[10], wo.mVertices[11]);
 
 		RectangleLight light;
-		light.origin = v1;
+		light.pos = v1;
 		light.r1 = v2 - v1;
 		light.r2 = v4 - v1;
 
 		// temp value
-		light.emission = make_float3(10, 10, 10);
+		light.color = make_float3(1, 1, 1);
 
 		return light;
 	}
@@ -233,8 +233,8 @@ public:
 	}
 
 	virtual void initPhysics(std::string prog_path) {
-		btCollisionShape* cylinderShape = new btCylinderShape(btVector3(1.65, 10.43 / 2, 1));
-		btDefaultMotionState* state = new btDefaultMotionState(btTransform(btQuaternion(0, 0, 0, 1), btVector3(0, 10, 0)));
+		btCollisionShape* cylinderShape = new btCylinderShape(btVector3(0.44, 1.2, 1));
+		btDefaultMotionState* state = new btDefaultMotionState(btTransform(btQuaternion(0, 0, 0, 1), btVector3(0, 0, 0)));
 
 		btVector3 inertia(0, 0, 0);
 		cylinderShape->calculateLocalInertia(1, inertia);
@@ -264,7 +264,8 @@ public:
 	}
 
 	virtual void initPhysics(std::string prog_path) {
-		btCollisionShape* groundShape = new btStaticPlaneShape(btVector3(0, 1, 0), -1);
+		btCollisionShape* groundShape = new btStaticPlaneShape(btVector3(0, 1, 0), 0);
+
 		btDefaultMotionState* state = new btDefaultMotionState(btTransform(btQuaternion(0, 0, 0, 1), btVector3(0, 0, 0)));
 
 		btRigidBody::btRigidBodyConstructionInfo info(0, state, groundShape, btVector3(0, 0, 0));

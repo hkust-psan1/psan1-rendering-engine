@@ -69,6 +69,7 @@ rtTextureSampler<float4, 2>     ks_map;
 rtTextureSampler<float4, 2>		normal_map;
 
 rtBuffer<BasicLight> lights;
+rtBuffer<RectangleLight> area_lights;
 
 struct PerRayData_radiance
 {
@@ -160,8 +161,11 @@ RT_PROGRAM void closest_hit_radiance()
   float3 color = cutoff_color;
   
   unsigned int num_lights = lights.size();
+  // unsigned int num_lights = area_lights.size();
+
   for (int i = 0; i < num_lights; i++) {
 	BasicLight light = lights[i];
+	// RectangleLight light = area_lights[i];
 	float Ldist = length(light.pos - fhp);
 
     float3 L = normalize(light.pos - fhp);

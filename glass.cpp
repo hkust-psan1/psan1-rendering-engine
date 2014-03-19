@@ -172,7 +172,6 @@ void GlassScene::trace( const RayGenCameraData& camera_data )
 
 	g->getAcceleration()->markDirty();
 
-
 	/*
 	btTransform trans;
 	pin->getRigidBody()->getMotionState()->getWorldTransform(trans);
@@ -458,6 +457,8 @@ void GlassScene::createMaterials( Material material[] )
 }
 
 void GlassScene::initObjects(const std::string& res_path) {
+	std::vector<RectangleLight> areaLights;
+
 	std::string mesh_path = ptxpath( "glass", "triangle_mesh_iterative.cu" );
 	std::string mat_path = ptxpath("glass", "checkerboard.cu");
 
@@ -493,7 +494,7 @@ void GlassScene::initObjects(const std::string& res_path) {
 	EmissiveObject* sample_light = new EmissiveObject(m_context);
 	sample_light->m_renderObjFilename = "/sample_light.obj";
 	sample_light->initGraphics(mesh_path, mat_path, res_path);
-	sample_light->createAreaLight();
+	areaLights.push_back(sample_light->createAreaLight());
 
 	btDbvtBroadphase* broadPhase = new btDbvtBroadphase();
 
@@ -520,6 +521,16 @@ void GlassScene::initObjects(const std::string& res_path) {
 
 	m_context["top_object"]->set(g);
 	m_context["top_shadower"]->set(g);
+
+	RectangleLight* areaLightArray = &areaLights[0];
+	// add area lights to the scene
+	Buffer areaLightBuffer = m_context->createBuffer(RT_BUFFER_INPUT);
+	areaLightBuffer->setFormat(RT_FORMAT_USER);
+	areaLightBuffer->setElementSize(sizeof(RectangleLight));
+	areaLightBuffer->setSize(areaLights.size());
+	memcpy(areaLightBuffer->map(), areaLightArray, sizeof(RectangleLight) * areaLights.size());
+	areaLightBuffer->unmap();
+	m_context["area_lights"]->set(areaLightBuffer);
 }
 
 void GlassScene::createGeometry( Material material[], const std::string& path )
