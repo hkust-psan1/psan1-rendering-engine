@@ -226,21 +226,6 @@ public:
 			triMesh->addTriangle(vertex0, vertex1, vertex2);
 		}
 
-		// convex hull for the object
-		/*
-		btConvexShape* tmpConvexShape = new btConvexTriangleMeshShape(triMesh);
-		btShapeHull* hull = new btShapeHull(tmpConvexShape);
-		hull->buildHull(tmpConvexShape->getMargin());
-		tmpConvexShape->setUserPointer(hull);
-
-		btConvexHullShape* convexShape = new btConvexHullShape();
-
-		for (int i = 0; i < hull->numVertices(); i++) {
-			convexShape->addPoint(hull->getVertexPointer()[i], false); // do not update local aabb
-		}
-		convexShape->recalcLocalAabb();
-		*/
-
 		ConvexDecomposition::DecompDesc desc;
 
 		desc.mVcount = wo.mVertexCount;
@@ -339,24 +324,19 @@ public:
 			btTransform trans;
 			trans.setIdentity();
 			trans.setOrigin(centeroid);
-			// printf("%.3f\t%.3f\t%.3f\n", centeroid.x(), centeroid.y(), centeroid.z());
-
 
 			compound->addChildShape(trans, shape);
 		}
 
-		btDefaultMotionState* state = new btDefaultMotionState(btTransform(btQuaternion(0, 0, 0, 1), btVector3(0, 0, 0)));
+		btDefaultMotionState* state = new btDefaultMotionState(
+			btTransform(btQuaternion(0, 0, 0, 1), btVector3(0, 0, 0)));
 
 		btVector3 inertia(0, 0, 0);
-		compound->calculateLocalInertia(1, inertia);
+		if (m_mass > 0) {
+			compound->calculateLocalInertia(m_mass, inertia);
+		}
 
 		btRigidBody::btRigidBodyConstructionInfo info(m_mass, state, compound, inertia);
-
-		/*
-		btCollisionShape* pinCollisionShape = new btBvhTriangleMeshShape(triMesh, true);
-		pinCollisionShape->calculateLocalInertia(1, inertia);
-		btRigidBody::btRigidBodyConstructionInfo info(m_mass, state, pinCollisionShape, inertia);
-		*/
 
 		m_rigidBody = new btRigidBody(info);
 	}
@@ -419,9 +399,9 @@ public:
 		btDefaultMotionState* state = new btDefaultMotionState(btTransform(btQuaternion(0, 0, 0, 1), btVector3(0, 0, 0)));
 
 		btVector3 inertia(0, 0, 0);
-		sphereShape->calculateLocalInertia(1, inertia);
+		sphereShape->calculateLocalInertia(m_mass, inertia);
 
-		btRigidBody::btRigidBodyConstructionInfo info(1, state, sphereShape, inertia);
+		btRigidBody::btRigidBodyConstructionInfo info(m_mass, state, sphereShape, inertia);
 
 		m_rigidBody = new btRigidBody(info);
 	}
@@ -469,24 +449,15 @@ public:
 		m_kr = make_float3(0.3, 0.3, 0.3);
 		m_ns = 5;
 
-		m_renderObjFilename = "/lane.obj";
-		m_physicsObjFilename = "/bowling-floor.obj";
+		m_renderObjFilename = "/lane-3.obj";
+		m_physicsObjFilename = "/lane-3.obj";
 		m_diffuseMapFilename = "/wood_floor_diffuse.ppm";
 		// m_normalMapFilename = "/wood_floor_normal.ppm";
 		// m_specularMapFilename = "/wood_floor_specular.ppm";
 	}
 
+	/*
 	virtual void initPhysics(std::string prog_path) {
-		/*
-		btCollisionShape* groundShape = new btStaticPlaneShape(btVector3(0, 1, 0), 0);
-
-		btDefaultMotionState* state = new btDefaultMotionState(btTransform(btQuaternion(0, 0, 0, 1), btVector3(0, 0, 0)));
-
-		btRigidBody::btRigidBodyConstructionInfo info(0, state, groundShape, btVector3(0, 0, 0));
-
-		m_rigidBody = new btRigidBody(info);
-		*/
-
 		btCollisionShape* boxShape = new btBoxShape(btVector3(100, 1, 5));
 		btDefaultMotionState* state = new btDefaultMotionState(
 			btTransform(btQuaternion(0, 0, 0, 1), btVector3(0, 0, 0)));
@@ -499,6 +470,7 @@ public:
 		m_rigidBody = new btRigidBody(info);
 		m_rigidBody->setWorldTransform(trans);
 	}
+	*/
 
 private:
 };

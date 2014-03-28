@@ -164,7 +164,7 @@ Buffer GlassScene::getOutputBuffer()
 void GlassScene::trace( const RayGenCameraData& camera_data )
 {
 	/* apply transformation obtained from bullet physics */
-	world->stepSimulation(1 / 1000.f, 10);
+	world->stepSimulation(1 / 200.f, 10);
 
 	for (int i = 0; i < sceneObjects.size(); i++) {
 		PhysicalObject* po = dynamic_cast<PhysicalObject*>(sceneObjects[i]);
@@ -447,7 +447,6 @@ void GlassScene::initObjects(const std::string& res_path) {
 	GroundPlane* groundPlane = new GroundPlane(m_context);
 	groundPlane->initGraphics(mesh_path, mat_path, res_path);
 	groundPlane->initPhysics(res_path);
-	groundPlane->setInitialPosition(make_float3(0, -1, 0));
 	sceneObjects.push_back(groundPlane);
 
 	const float pinRadius = 0.44; // from the obj file
@@ -455,7 +454,7 @@ void GlassScene::initObjects(const std::string& res_path) {
 	const float unitX = pinDistance * 1.73205 / 2;
 	const float unitZ = pinDistance / 2;
 
-	const float initY = 0.42;
+	const float initY = 0;
 
 	float3 pinBasePosition = make_float3(10, 0, 0);
 	float3 pinPositions[10] = {
@@ -471,7 +470,7 @@ void GlassScene::initObjects(const std::string& res_path) {
 		make_float3(3 * unitX, initY, 3 * unitZ) + pinBasePosition,
 	};
 
-	for (int i = 0; i < 10; i++) {
+	for (int i = 0; i < 1; i++) {
 		BowlingPin* pin = new BowlingPin(m_context);
 		pin->initGraphics(mesh_path, mat_path, res_path);
 		pin->initPhysics(res_path);
@@ -483,7 +482,7 @@ void GlassScene::initObjects(const std::string& res_path) {
 	ball->initGraphics(mesh_path, mat_path, res_path);
 	ball->initPhysics(res_path);
 	ball->setInitialPosition(make_float3(-10, 0, 0));
-	ball->getRigidBody()->setLinearVelocity(btVector3(100, 0, 1));
+	ball->getRigidBody()->setLinearVelocity(btVector3(10, 0, 0));
 	sceneObjects.push_back(ball);
 
 	SceneObject* banner = new SceneObject(m_context);
