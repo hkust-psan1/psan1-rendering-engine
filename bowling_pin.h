@@ -9,12 +9,65 @@
 
 #include <btBulletDynamicsCommon.h>
 #include <btBulletCollisionCommon.h>
+#include <BulletCollision\CollisionShapes\btShapeHull.h>
+#include <ConvexDecomposition\ConvexDecomposition.h>
+
+#include "HACD\hacdCircularList.h"
+#include "HACD\hacdVector.h"
+#include "HACD\hacdICHull.h"
+#include "HACD\hacdGraph.h"
+#include "HACD\hacdHACD.h"
 
 #include <cd_wavefront.h>
 
 #include <assert.h>
 
+#include <fstream>
+#include <sstream>
+
 using namespace optix;
+
+void printFloat3(float3 f) {
+	printf("%.3f\t%.3f\t%.3f\n", f.x, f.y, f.z);
+}
+
+float3 float3FromString(std::string s) {
+	std::stringstream ss(s);
+	std::string seg;
+
+	float f[3];
+
+	for (int i = 0; i < 3; i++) {
+		getline(ss, seg, ' ');
+
+		f[i] = atof(seg.c_str());
+	}
+
+	return make_float3(f[0], f[1], f[2]);
+}
+
+void parseMtlFile(Material mat) {
+	std::string filename = "D:/OptiX SDK 3.0.1/SDK - Copy/glass/banner.mtl";
+	std::ifstream mtlInput(filename);
+
+	std::vector<std::string> lines;
+
+	for (std::string line; getline(mtlInput, line); ) {
+		std::stringstream ss(line);
+
+		std::string type, value;
+		getline(ss, type, ' ');
+		getline(ss, value, '\n');
+		
+		if (type == "Ka") {
+			mat["k_ambient"]->setFloat(float3FromString(value));
+		} else if (type == "Kd") {
+			mat["k_diffuse"]->setFloat(float3FromString(value));
+		} else if (type == "Ks") {
+			mat["k_specular"]->setFloat(float3FromString(value));
+		}
+	}
+}
 
 class SceneObject {
 public:
@@ -88,6 +141,8 @@ public:
 		}
 		*/
 		m_transform->setChild(group);
+
+		parseMtlFile(mat);
 	}
 
 	inline Transform getTransform() const { return m_transform; };
@@ -161,24 +216,147 @@ public:
 			int index1 = wo.mIndices[i * 3 + 1];
 			int index2 = wo.mIndices[i * 3 + 2];
 
-			btVector3 vertex0(wo.mVertices[index0 * 3], wo.mVertices[index0 * 3 + 1], wo.mVertices[index0 * 3 + 2]);
-			btVector3 vertex1(wo.mVertices[index1 * 3], wo.mVertices[index1 * 3 + 1], wo.mVertices[index1 * 3 + 2]);
-			btVector3 vertex2(wo.mVertices[index2 * 3], wo.mVertices[index2 * 3 + 1], wo.mVertices[index2 * 3 + 2]);
-
-			float z1 = wo.mVertices[index0 * 3 + 1];
-			float z2 = wo.mVertices[index1 * 3 + 1];
-			float z3 = wo.mVertices[index2 * 3 + 1];
+			btVector3 vertex0(wo.mVertices[index0 * 3], wo.mVertices[index0 * 3 + 1], 
+				wo.mVertices[index0 * 3 + 2]);
+			btVector3 vertex1(wo.mVertices[index1 * 3], wo.mVertices[index1 * 3 + 1], 
+				wo.mVertices[index1 * 3 + 2]);
+			btVector3 vertex2(wo.mVertices[index2 * 3], wo.mVertices[index2 * 3 + 1], 
+				wo.mVertices[index2 * 3 + 2]);
 
 			triMesh->addTriangle(vertex0, vertex1, vertex2);
 		}
 
-		btCollisionShape* pinCollisionShape = new btBvhTriangleMeshShape(triMesh, true);
+		// convex hull for the object
+		/*
+		btConvexShape* tmpConvexShape = new btConvexTriangleMeshShape(triMesh);
+		btShapeHull* hull = new btShapeHull(tmpConvexShape);
+		hull->buildHull(tmpConvexShape->getMargin());
+		tmpConvexShape->setUserPointer(hull);
 
-		btDefaultMotionState* state = new btDefaultMotionState(btTransform(btQuaternion(0, 0, 0, 1), btVector3(0, 10, 0)));
+		btConvexHullShape* convexShape = new btConvexHullShape();
+
+		for (int i = 0; i < hull->numVertices(); i++) {
+			convexShape->addPoint(hull->getVertexPointer()[i], false); // do not update local aabb
+		}
+		convexShape->recalcLocalAabb();
+		*/
+
+		ConvexDecomposition::DecompDesc desc;
+
+		desc.mVcount = wo.mVertexCount;
+		desc.mTcount = wo.mTriCount;
+
+		desc.mVertices = wo.mVertices;
+		desc.mIndices = (unsigned int *)wo.mIndices;
+
+		desc.mDepth = 5;
+		desc.mCpercent = 5;
+		desc.mPpercent = 15;
+		desc.mMaxVertices = 16;
+		desc.mSkinWidth = 0;
+
+		std::vector<HACD::Vec3<HACD::Real>> points;
+		std::vector<HACD::Vec3<long>> triangles;
+
+		for (int i = 0; i < wo.mVertexCount; i++) {
+			HACD::Vec3<HACD::Real> v(wo.mVertices[i * 3], wo.mVertices[i * 3 + 1], wo.mVertices[i * 3 + 2]);
+			points.push_back(v);
+		}
+
+		for (int i = 0; i < wo.mTriCount; i++) {
+			HACD::Vec3<long> t(wo.mIndices[i * 3], wo.mIndices[i * 3 + 1], wo.mIndices[i * 3 + 2]);
+			triangles.push_back(t);
+		}
+
+		HACD::HACD hacd;
+		hacd.SetPoints(&points[0]);
+		hacd.SetNPoints(points.size());
+		hacd.SetTriangles(&triangles[0]);
+		hacd.SetNTriangles(triangles.size());
+		hacd.SetCompacityWeight(0.1);
+		hacd.SetVolumeWeight(0);
+		hacd.SetNClusters(2);
+		hacd.SetNVerticesPerCH(100);
+		hacd.SetConcavity(100);
+		hacd.SetAddExtraDistPoints(false);
+		hacd.SetAddNeighboursDistPoints(false);
+		hacd.SetAddFacesPoints(false);
+		hacd.Compute();
+
+		btCompoundShape* compound = new btCompoundShape();
+
+		for (int i = 0; i < hacd.GetNClusters(); i++) { // for each cluster from HACD
+			int numPoints = hacd.GetNPointsCH(i);
+			int numTriangles = hacd.GetNTrianglesCH(i);
+
+			float* vertices = new float[numPoints * 3];
+			unsigned int* triangles = new unsigned int[numTriangles * 3];
+
+			HACD::Vec3<HACD::Real>* pointsCH = new HACD::Vec3<HACD::Real>[numPoints];
+			HACD::Vec3<long>* trianglesCH = new HACD::Vec3<long>[numTriangles];
+			hacd.GetCH(i, pointsCH, trianglesCH);
+
+			for (int j = 0; j < numPoints; j++) {
+				vertices[3 * j] = pointsCH[j].X();
+				vertices[3 * j + 1] = pointsCH[j].Y();
+				vertices[3 * j + 2] = pointsCH[j].Z();
+			}
+
+			for (int j = 0; j < numTriangles; j++) {
+				triangles[3 * j] = trianglesCH[j].X();
+				triangles[3 * j + 1] = trianglesCH[j].Y();
+				triangles[3 * j + 2] = trianglesCH[j].Z();
+			}
+
+			ConvexDecomposition::ConvexResult result(numPoints, vertices, numTriangles, triangles);
+
+			// find the center for each part
+			btVector3 centeroid(0, 0, 0);
+
+			// compute the center
+			for (unsigned int j = 0; j < result.mHullVcount; j++) {
+				btVector3 vertex(result.mHullVertices[j * 3], result.mHullVertices[j * 3 + 1],
+					result.mHullVertices[j * 3 + 2]);
+				centeroid += vertex;
+			}
+
+			centeroid /= float(result.mHullVcount);
+
+			btAlignedObjectArray<btVector3> vArr;
+
+			// computer relative position
+			for (unsigned int j = 0; j < result.mHullVcount; j++) {
+				btVector3 vertex(result.mHullVertices[j * 3], result.mHullVertices[j * 3 + 1],
+					result.mHullVertices[j * 3 + 2]);
+				vertex -= centeroid;
+				vArr.push_back(vertex);
+			}
+
+			// create convex shape
+			btConvexHullShape* shape = new btConvexHullShape(&(vArr[0].getX()), vArr.size());
+			shape->setMargin(0.01f);
+
+			btTransform trans;
+			trans.setIdentity();
+			trans.setOrigin(centeroid);
+			// printf("%.3f\t%.3f\t%.3f\n", centeroid.x(), centeroid.y(), centeroid.z());
+
+
+			compound->addChildShape(trans, shape);
+		}
+
+		btDefaultMotionState* state = new btDefaultMotionState(btTransform(btQuaternion(0, 0, 0, 1), btVector3(0, 0, 0)));
 
 		btVector3 inertia(0, 0, 0);
-		// pinCollisionShape->calculateLocalInertia(mass, inertia);
+		compound->calculateLocalInertia(1, inertia);
+
+		btRigidBody::btRigidBodyConstructionInfo info(m_mass, state, compound, inertia);
+
+		/*
+		btCollisionShape* pinCollisionShape = new btBvhTriangleMeshShape(triMesh, true);
+		pinCollisionShape->calculateLocalInertia(1, inertia);
 		btRigidBody::btRigidBodyConstructionInfo info(m_mass, state, pinCollisionShape, inertia);
+		*/
 
 		m_rigidBody = new btRigidBody(info);
 	}
@@ -198,6 +376,8 @@ public:
 		float tx = origin.getX();
 		float ty = origin.getY();
 		float tz = origin.getZ();
+
+		// printFloat3(make_float3(tx, ty, tz));
 
 		btQuaternion quaternion = trans.getRotation();
 		float qx = quaternion.getX();
@@ -255,13 +435,14 @@ public:
 		m_kr = make_float3(0, 0, 0);
 		m_ns = 10;
 
-		m_renderObjFilename = "/pin.obj";
+		m_renderObjFilename = "/pin-new.obj";
 		m_physicsObjFilename = "/pin-phy.obj";
 		m_diffuseMapFilename = "/pin-diffuse.ppm";
 		// m_normalMapFilename = "/brick_normal.ppm";
 		// m_specularMapFilename = "/brick_specular.ppm";
 	}
 
+	/*
 	virtual void initPhysics(std::string prog_path) {
 		btCollisionShape* cylinderShape = new btCylinderShape(btVector3(0.44, 1.2, 1));
 		btDefaultMotionState* state = new btDefaultMotionState(btTransform(btQuaternion(0, 0, 0, 1), btVector3(0, 0, 0)));
@@ -272,7 +453,9 @@ public:
 		btRigidBody::btRigidBodyConstructionInfo info(1, state, cylinderShape, inertia);
 
 		m_rigidBody = new btRigidBody(info);
+		m_rigidBody->setFriction(0.3);
 	}
+	*/
 
 private:
 };
@@ -294,6 +477,7 @@ public:
 	}
 
 	virtual void initPhysics(std::string prog_path) {
+		/*
 		btCollisionShape* groundShape = new btStaticPlaneShape(btVector3(0, 1, 0), 0);
 
 		btDefaultMotionState* state = new btDefaultMotionState(btTransform(btQuaternion(0, 0, 0, 1), btVector3(0, 0, 0)));
@@ -301,6 +485,19 @@ public:
 		btRigidBody::btRigidBodyConstructionInfo info(0, state, groundShape, btVector3(0, 0, 0));
 
 		m_rigidBody = new btRigidBody(info);
+		*/
+
+		btCollisionShape* boxShape = new btBoxShape(btVector3(100, 1, 5));
+		btDefaultMotionState* state = new btDefaultMotionState(
+			btTransform(btQuaternion(0, 0, 0, 1), btVector3(0, 0, 0)));
+
+		btRigidBody::btRigidBodyConstructionInfo info(0, state, boxShape, btVector3(0, 0, 0));
+
+		btTransform trans;
+		trans.setIdentity();
+		trans.setOrigin(btVector3(0, -0.5, 5));
+		m_rigidBody = new btRigidBody(info);
+		m_rigidBody->setWorldTransform(trans);
 	}
 
 private:

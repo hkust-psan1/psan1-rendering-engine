@@ -20,7 +20,7 @@ while line = input_obj.gets
 end
 
 objs.each do |obj|
-	output_filename = 'outputs/' + obj[0].split(' ')[1] + '.obj'
+	output_filename = 'outputs/' + obj[0].split(' ')[1].split('_')[0] + '.obj'
 	File.open(output_filename, 'w') do |f|
 		f.write obj.join('')
 	end

@@ -164,7 +164,7 @@ Buffer GlassScene::getOutputBuffer()
 void GlassScene::trace( const RayGenCameraData& camera_data )
 {
 	/* apply transformation obtained from bullet physics */
-	world->stepSimulation(1 / 300.f, 10);
+	world->stepSimulation(1 / 1000.f, 10);
 
 	for (int i = 0; i < sceneObjects.size(); i++) {
 		PhysicalObject* po = dynamic_cast<PhysicalObject*>(sceneObjects[i]);
@@ -439,28 +439,36 @@ void GlassScene::createMaterials( Material material[] )
 }
 
 void GlassScene::initObjects(const std::string& res_path) {
-	const float pinRadius = 0.44; // from the obj file
-	const float pinDistance = 0.44 * 12 / (4.75 / 2); // 12 inches distance with 4.75 inches diameter
-	const float unitX = pinDistance * 1.73205 / 2;
-	const float unitZ = pinDistance / 2;
-
 	std::vector<RectangleLight> areaLights;
 
 	std::string mesh_path = ptxpath( "glass", "triangle_mesh_iterative.cu" );
 	std::string mat_path = ptxpath("glass", "checkerboard.cu");
 
+	GroundPlane* groundPlane = new GroundPlane(m_context);
+	groundPlane->initGraphics(mesh_path, mat_path, res_path);
+	groundPlane->initPhysics(res_path);
+	groundPlane->setInitialPosition(make_float3(0, -1, 0));
+	sceneObjects.push_back(groundPlane);
+
+	const float pinRadius = 0.44; // from the obj file
+	const float pinDistance = 0.44 * 12 / (4.75 / 2); // 12 inches distance with 4.75 inches diameter
+	const float unitX = pinDistance * 1.73205 / 2;
+	const float unitZ = pinDistance / 2;
+
+	const float initY = 0.42;
+
 	float3 pinBasePosition = make_float3(10, 0, 0);
 	float3 pinPositions[10] = {
-		make_float3(0, 0, 0) + pinBasePosition,
-		make_float3(unitX, 0, unitZ) + pinBasePosition,
-		make_float3(unitX, 0, - unitZ) + pinBasePosition,
-		make_float3(2 * unitX, 0, 2 * unitZ) + pinBasePosition,
-		make_float3(2 * unitX, 0, 0) + pinBasePosition,
-		make_float3(2 * unitX, 0, - 2 * unitZ) + pinBasePosition,
-		make_float3(3 * unitX, 0, - 3 * unitZ) + pinBasePosition,
-		make_float3(3 * unitX, 0, - 1 * unitZ) + pinBasePosition,
-		make_float3(3 * unitX, 0, 1 * unitZ) + pinBasePosition,
-		make_float3(3 * unitX, 0, 3 * unitZ) + pinBasePosition,
+		make_float3(0, initY, 0) + pinBasePosition,
+		make_float3(unitX, initY, unitZ) + pinBasePosition,
+		make_float3(unitX, initY, - unitZ) + pinBasePosition,
+		make_float3(2 * unitX, initY, 2 * unitZ) + pinBasePosition,
+		make_float3(2 * unitX, initY, 0) + pinBasePosition,
+		make_float3(2 * unitX, initY, - 2 * unitZ) + pinBasePosition,
+		make_float3(3 * unitX, initY, - 3 * unitZ) + pinBasePosition,
+		make_float3(3 * unitX, initY, - 1 * unitZ) + pinBasePosition,
+		make_float3(3 * unitX, initY, 1 * unitZ) + pinBasePosition,
+		make_float3(3 * unitX, initY, 3 * unitZ) + pinBasePosition,
 	};
 
 	for (int i = 0; i < 10; i++) {
@@ -470,11 +478,6 @@ void GlassScene::initObjects(const std::string& res_path) {
 		pin->setInitialPosition(pinPositions[i]);
 		sceneObjects.push_back(pin); 
 	}
-
-	GroundPlane* groundPlane = new GroundPlane(m_context);
-	groundPlane->initGraphics(mesh_path, mat_path, res_path);
-	groundPlane->initPhysics(res_path);
-	sceneObjects.push_back(groundPlane);
 
 	Ball* ball = new Ball(m_context);
 	ball->initGraphics(mesh_path, mat_path, res_path);
@@ -589,7 +592,6 @@ void printUsageAndExit( const std::string& argv0, bool doExit = true )
 
 int main(int argc, char* argv[])
 {
-	// btDbvtBroadphase* bp = new btDbvtBroadphase();
   GLUTDisplay::init( argc, argv );
 
   bool adaptive_aa = true;  // Default to true for now
@@ -629,6 +631,4 @@ int main(int argc, char* argv[])
     sutilReportError( e.getErrorString().c_str() );
     exit(1);
   }
-
-  return 0;
 }
