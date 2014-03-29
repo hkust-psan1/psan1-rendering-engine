@@ -45,10 +45,6 @@
 
 #include "bowling_pin.h"
 
-namespace OptixControl {
-	bool animation = false;
-};
-
 using namespace optix;
 
 inline float random1()
@@ -83,14 +79,18 @@ public:
   void   doResize( unsigned int width, unsigned int depth );
   Buffer getOutputBuffer();
   bool keyPressed(unsigned char key, int x, int y);
-  
-void printRandomMsg() {
-	printf("nimas\n");
-}
 
+	void initObjects();
+	void resetObjects();
+
+  btDiscreteDynamicsWorld* world;
+
+  std::vector<SceneObject*> sceneObjects;
+  std::vector<BowlingPin*> pins;
+
+  Ball* ball;
 
 private:
-	void initObjects(const std::string& path);
 
   void createContext( SampleScene::InitialCameraData& camera_data );
   void createMaterials(Material material[] );
@@ -122,16 +122,19 @@ private:
   static unsigned int WIDTH;
   static unsigned int HEIGHT;
 
-  btDiscreteDynamicsWorld* world;
-
-  std::vector<SceneObject*> sceneObjects;
 
   Group g;
 };
 
+namespace OptixControl {
+	bool animation = false;
+	bool toReset = true;
+};
+
+GlassScene* scene;
+
 unsigned int GlassScene::WIDTH  = 512u;
 unsigned int GlassScene::HEIGHT = 384u;
-
 
 void GlassScene::genRndSeeds( unsigned int width, unsigned int height )
 {
@@ -146,9 +149,9 @@ void GlassScene::initScene( InitialCameraData& camera_data )
     optix::Material material[3];
     createContext( camera_data );
     createMaterials( material );
-    // createGeometry( material, m_obj_path );
 
-	initObjects(m_obj_path);
+	initObjects();
+	resetObjects();
 
     m_context->validate();
     m_context->compile();
@@ -168,19 +171,28 @@ Buffer GlassScene::getOutputBuffer()
 
 void GlassScene::trace( const RayGenCameraData& camera_data )
 {
-	if (OptixControl::animation) {
-		/* apply transformation obtained from bullet physics */
-		world->stepSimulation(1 / 200.f, 10);
+	if (OptixControl::toReset) {
+		// give the physics engine some time to reset the scene
+		world->stepSimulation(1 / 10.f, 10);
 
-		for (int i = 0; i < sceneObjects.size(); i++) {
-			PhysicalObject* po = dynamic_cast<PhysicalObject*>(sceneObjects[i]);
-			if (po) {
-				po->step();
-			}
-		}
-
-		g->getAcceleration()->markDirty();
+		// already set
+		OptixControl::toReset = false;
 	}
+
+	if (OptixControl::animation) { // when animation is on, step simulation
+		world->stepSimulation(1 / 200.f, 10);
+	}
+
+	// re-position objects according to simulation result
+	for (int i = 0; i < sceneObjects.size(); i++) {
+		PhysicalObject* po = dynamic_cast<PhysicalObject*>(sceneObjects[i]);
+		if (po) {
+			po->step();
+		}
+	}
+
+	// mark acceleration structure dirty
+	g->getAcceleration()->markDirty();
 
 	/* Optix rendering settings */
   if ( m_camera_changed ) 
@@ -445,17 +457,7 @@ void GlassScene::createMaterials( Material material[] )
 
 }
 
-void GlassScene::initObjects(const std::string& res_path) {
-	std::vector<RectangleLight> areaLights;
-
-	std::string mesh_path = ptxpath( "glass", "triangle_mesh_iterative.cu" );
-	std::string mat_path = ptxpath("glass", "checkerboard.cu");
-
-	GroundPlane* groundPlane = new GroundPlane(m_context);
-	groundPlane->initGraphics(mesh_path, mat_path, res_path);
-	groundPlane->initPhysics(res_path);
-	sceneObjects.push_back(groundPlane);
-
+void GlassScene::resetObjects() {
 	const float pinRadius = 0.44; // from the obj file
 	const float pinDistance = 0.44 * 12 / (4.75 / 2); // 12 inches distance with 4.75 inches diameter
 	const float unitX = pinDistance * 1.73205 / 2;
@@ -477,53 +479,72 @@ void GlassScene::initObjects(const std::string& res_path) {
 		make_float3(3 * unitX, initY, 3 * unitZ) + pinBasePosition,
 	};
 
-	for (int i = 0; i < 10; i++) {
-		BowlingPin* pin = new BowlingPin(m_context);
-		pin->initGraphics(mesh_path, mat_path, res_path);
-		pin->initPhysics(res_path);
-		pin->setInitialPosition(pinPositions[i]);
-		sceneObjects.push_back(pin); 
+	for (int i = 0; i < pins.size(); i++) {
+		pins[i]->setInitialPosition(pinPositions[i]);
 	}
 
-	Ball* ball = new Ball(m_context);
-	ball->initGraphics(mesh_path, mat_path, res_path);
-	ball->initPhysics(res_path);
 	ball->setInitialPosition(make_float3(-10, 0, 0));
-	ball->getRigidBody()->setLinearVelocity(btVector3(20, 0, 1));
+}
+
+void GlassScene::initObjects() {
+	std::vector<RectangleLight> areaLights;
+
+	std::string mesh_path = ptxpath( "glass", "triangle_mesh_iterative.cu" );
+	std::string mat_path = ptxpath("glass", "checkerboard.cu");
+
+	GroundPlane* groundPlane = new GroundPlane(m_context);
+	groundPlane->initGraphics(mesh_path, mat_path, m_obj_path);
+	groundPlane->initPhysics(m_obj_path);
+	sceneObjects.push_back(groundPlane);
+
+	for (int i = 0; i < 1; i++) {
+		BowlingPin* pin = new BowlingPin(m_context);
+		pin->initGraphics(mesh_path, mat_path, m_obj_path);
+		pin->initPhysics(m_obj_path);
+
+		sceneObjects.push_back(pin); 
+		pins.push_back(pin);
+	}
+
+	ball = new Ball(m_context);
+	ball->initGraphics(mesh_path, mat_path, m_obj_path);
+	ball->initPhysics(m_obj_path);
 	sceneObjects.push_back(ball);
 
 	/*
 	PhysicalObject* rightDitch = new PhysicalObject(m_context);
 	rightDitch->m_renderObjFilename = "/simple.obj";
 	rightDitch->m_physicsObjFilename = "/simple.obj";
-	rightDitch->initGraphics(mesh_path, mat_path, res_path);
-	rightDitch->initPhysics(res_path);
+	rightDitch->initGraphics(mesh_path, mat_path, m_obj_path);
+	rightDitch->initPhysics(m_obj_path);
 	sceneObjects.push_back(rightDitch);
 	*/
 
+	/*
 	SceneObject* banner = new SceneObject(m_context);
 	banner->m_renderObjFilename = "/banner.obj";
 	banner->m_diffuseMapFilename = "/banner_diffuse.ppm";
-	banner->initGraphics(mesh_path, mat_path, res_path);
+	banner->initGraphics(mesh_path, mat_path, m_obj_path);
 
 	SceneObject* ditch = new SceneObject(m_context);
 	ditch->m_renderObjFilename = "/ditch.obj";
 	ditch->m_kd = make_float3(0.05, 0.05, 0.05);
 	ditch->m_ks = make_float3(0.5, 0.5, 0.5);
 	ditch->m_kr = make_float3(0.2, 0.2, 0.2);
-	ditch->initGraphics(mesh_path, mat_path, res_path);
+	ditch->initGraphics(mesh_path, mat_path, m_obj_path);
 
 	SceneObject* ditch_bar = new SceneObject(m_context);
 	ditch_bar->m_renderObjFilename = "/ditch_bar.obj";
-	ditch_bar->initGraphics(mesh_path, mat_path, res_path);
+	ditch_bar->initGraphics(mesh_path, mat_path, m_obj_path);
 
 	SceneObject* side_floor = new SceneObject(m_context);
 	side_floor->m_renderObjFilename = "/side_floor.obj";
-	side_floor->initGraphics(mesh_path, mat_path, res_path);
+	side_floor->initGraphics(mesh_path, mat_path, m_obj_path);
+	*/
 
 	EmissiveObject* sample_light = new EmissiveObject(m_context);
 	sample_light->m_renderObjFilename = "/sample_light.obj";
-	sample_light->initGraphics(mesh_path, mat_path, res_path);
+	sample_light->initGraphics(mesh_path, mat_path, m_obj_path);
 	areaLights.push_back(sample_light->createAreaLight());
 
 	btDbvtBroadphase* broadPhase = new btDbvtBroadphase();
@@ -603,36 +624,48 @@ void printUsageAndExit( const std::string& argv0, bool doExit = true )
   if ( doExit ) exit(1);
 }
 
-class ObjPreprocessor {
-public:
+namespace GUIControl {
+	void startButtonPressed() {
+		if (scene) {
+			scene->ball->getRigidBody()->setLinearVelocity(btVector3(20, 0, 1));
+			OptixControl::animation = !OptixControl::animation;
+		}
+	}
+
+	void resetButtonPressed() {
+		if (scene) {
+			scene->ball->getRigidBody()->setLinearVelocity(btVector3(0, 0, 0));
+			scene->resetObjects();
+
+			OptixControl::animation = false;
+			OptixControl::toReset = true;
+		}
+	}
+
+	DWORD WINAPI showControlDialog(LPVOID lpParam) {
+		Fl_Window* window = new Fl_Window(400, 300);
+
+		window->begin();
+
+		Fl_Button* startButton = new Fl_Button(0, 0, 200, 50, "start");
+		startButton->callback((Fl_Callback*) startButtonPressed);
+
+		Fl_Button* resetButton = new Fl_Button(0, 60, 200, 50, "reset");
+		resetButton->callback((Fl_Callback*) resetButtonPressed);
+
+		window->end();
+		window->show();
+
+		return Fl::run();
+	}
 };
-
-void buttonCallback() {
-	OptixControl::animation = true;
-}
-
-DWORD WINAPI showControlDialog(LPVOID lpParam) {
-	Fl_Window* window = new Fl_Window(400, 300);
-
-	window->begin();
-
-	Fl_Button* button = new Fl_Button(0, 0, 200, 50, "start");
-	button->callback((Fl_Callback*) buttonCallback);
-
-	window->end();
-	window->show();
-
-	return Fl::run();
-}
 
 int main(int argc, char* argv[])
 {
-	GlassScene* scene;
-
 	HANDLE hThread;
 	DWORD threadID;
 
-	hThread = CreateThread(NULL, 0, showControlDialog, NULL, 0, &threadID);
+	hThread = CreateThread(NULL, 0, GUIControl::showControlDialog, NULL, 0, &threadID);
 
   GLUTDisplay::init( argc, argv );
 

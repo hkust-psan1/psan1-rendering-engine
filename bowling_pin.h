@@ -31,6 +31,10 @@ void printFloat3(float3 f) {
 	printf("%.3f\t%.3f\t%.3f\n", f.x, f.y, f.z);
 }
 
+void printBtVector(btVector3 v) {
+	printf("%.3f\t%.3f\t%.3f\n", v.x(), v.y(), v.z());
+}
+
 float3 float3FromString(std::string s) {
 	std::stringstream ss(s);
 	std::string seg;
@@ -344,6 +348,7 @@ public:
 		t.setIdentity();
 		t.setOrigin(btVector3(pos.x, pos.y, pos.z));
 		m_rigidBody->setWorldTransform(t);
+
 	}
 
 	void step() {
