@@ -115,13 +115,13 @@ public:
 		mat["reflection_maxdepth"]->setInt( 5 );
 
 		mat["kd_map"]->setTextureSampler(loadTexture(m_context, 
-			"D:/OptiX SDK 3.0.1/SDK - Copy/glass/" + m_diffuseMapFilename, 
+			res_path + m_diffuseMapFilename, 
 			make_float3(1, 1, 1)));
 		mat["ks_map"]->setTextureSampler(loadTexture(m_context, 
-			"D:/OptiX SDK 3.0.1/SDK - Copy/glass/" + m_specularMapFilename, 
+			res_path + m_specularMapFilename, 
 			make_float3(1, 1, 1)));
 		mat["normal_map"]->setTextureSampler(loadTexture(m_context, 
-			"D:/OptiX SDK 3.0.1/SDK - Copy/glass/" + m_normalMapFilename, 
+			res_path + m_normalMapFilename, 
 			make_float3(1, 1, 1)));
 
 		mat["has_diffuse_map"]->setInt(!m_diffuseMapFilename.empty());

@@ -21,8 +21,8 @@
 
 #include <optix.h>
 #include <optixu/optixu_math_namespace.h>
-
 #include "helpers.h"
+#include "random.h"
 
 using namespace optix;
 
@@ -33,64 +33,63 @@ struct PerRayData_radiance
   int depth;
 };
 
-rtDeclareVariable(float3,        eye, , ) = { 1.0f, 0.0f, 0.0f };
-rtDeclareVariable(float3,        U, , )   = { 0.0f, 1.0f, 0.0f };
-rtDeclareVariable(float3,        V, , )   = { 0.0f, 0.0f, 1.0f };
-rtDeclareVariable(float3,        W, , )   = { -1.0f, 0.0f, 0.0f };
+rtDeclareVariable(unsigned int,  frame_number, , );
+rtDeclareVariable(float3,        eye, , );
+rtDeclareVariable(float3,        U, , );
+rtDeclareVariable(float3,        V, , );
+rtDeclareVariable(float3,        W, , );
 rtDeclareVariable(float3,        bad_color, , );
-rtDeclareVariable(float,         scene_epsilon, , ) = 0.1f;
+rtDeclareVariable(float,         scene_epsilon, , );
+rtBuffer<float4, 2>              output_buffer;
+rtBuffer<float4, 2>              variance_sum_buffer;
+rtBuffer<float4, 2>              variance_sum2_buffer;
+rtBuffer<unsigned int, 2>        num_samples_buffer;
+rtBuffer<unsigned int, 2>        rnd_seeds;
 rtDeclareVariable(rtObject,      top_object, , );
 rtDeclareVariable(unsigned int,  radiance_ray_type, , );
 
-rtBuffer<float4, 2>              output_buffer;
-
-rtDeclareVariable(uint2, launch_index, rtLaunchIndex, );
-rtDeclareVariable(float, time_view_scale, , ) = 1e-6f;
-
-rtDeclareVariable(float, aperture_radius, , );
-rtDeclareVariable(float, focal_scale, , );
-
-rtDeclareVariable(unsigned int, frame_number, , );
-rtDeclareVariable(float4, jitter, , );
-
-// #define TIME_VIEW
+rtDeclareVariable(uint2,      launch_index, rtLaunchIndex, );
 
 
-__device__ __forceinline__ void write_output( float3 c )
+// Check whether the pixel is in the center of block
+static __device__ __inline__ bool shouldTrace( const uint2& index, unsigned int spacing )
 {
-  output_buffer[launch_index] = make_float4(c, 1.f);
-}
-
-__device__ __forceinline__ float3 read_output()
-{
-  return make_float3( output_buffer[launch_index] );
+  unsigned int half_spacing  = spacing >> 1;
+  uint2        shifted_index = make_uint2( index.x + half_spacing, index.y + half_spacing ); 
+  size_t2      screen        = output_buffer.size(); 
+  return ( shifted_index.x % spacing == 0 && shifted_index.y % spacing == 0 ) ||
+         ( index.x == screen.x-1 && screen.x % spacing <= half_spacing && shifted_index.y % spacing == 0 ) ||
+         ( index.y == screen.y-1 && screen.y % spacing <= half_spacing && shifted_index.x % spacing == 0 );
 }
 
 
-
-
-RT_PROGRAM void dof_camera()
+// Flood fill a block
+static __device__ __inline__ void fill( const uint2& index, const float3& color, unsigned int spacing )
 {
-#ifdef TIME_VIEW
-  clock_t t0 = clock(); 
-#endif
+  size_t2      screen        = output_buffer.size(); 
+  unsigned int half_spacing  = spacing >> 1;
+
+  unsigned int min_x = max( index.x-half_spacing, 0u );
+  unsigned int max_x = min( index.x+half_spacing, (unsigned int) screen.x );
+  unsigned int min_y = max( index.y-half_spacing, 0u );
+  unsigned int max_y = min( index.y+half_spacing, (unsigned int) screen.y );
+  
+  for ( unsigned int i = min_x; i < max_x; ++i ) {
+    for ( unsigned int j = min_y; j < max_y; ++j ) {
+      output_buffer[ make_uint2( i, j ) ] = make_color(color);
+    }
+  }
+}
+
+
+// Trace ray through screen_coord
+static __device__ __inline__ float3 trace( float2 screen_coord )
+{
   size_t2 screen = output_buffer.size();
-
-  // pixel sampling
-  float2 pixel_sample = make_float2(launch_index) + make_float2(jitter.x, jitter.y);
-  float2 d = pixel_sample / make_float2(screen) * 2.f - 1.f;
-
-  // Calculate ray-viewplane intersection point
+  float2 d = screen_coord / make_float2(screen) * 2.f - 1.f;
   float3 ray_origin = eye;
-  float3 ray_direction = d.x*U + d.y*V + W;
-  float3 ray_target = ray_origin + focal_scale * ray_direction;
-
-  // lens sampling
-  float2 sample = optix::square_to_disk(make_float2(jitter.z, jitter.w));
-  ray_origin = ray_origin + aperture_radius * ( sample.x * normalize( U ) +  sample.y * normalize( V ) );
-  ray_direction = normalize(ray_target - ray_origin);
-
-  // shoot ray
+  float3 ray_direction = normalize(d.x*U + d.y*V + W);
+  
   optix::Ray ray = optix::make_Ray(ray_origin, ray_direction, radiance_ray_type, scene_epsilon, RT_DEFAULT_MAX);
 
   PerRayData_radiance prd;
@@ -98,30 +97,98 @@ RT_PROGRAM void dof_camera()
   prd.depth = 0;
 
   rtTrace(top_object, ray, prd);
+  return prd.result;
+}
 
-#ifdef TIME_VIEW
-  clock_t t1 = clock(); 
- 
-  float expected_fps   = 1.0f;
-  float pixel_time     = ( t1 - t0 ) * time_view_scale * expected_fps;
-  write_output( make_float3( pixel_time ) );
-#else
-  // accumulation
-  if (frame_number > 1)
-  {
-    float a = 1.0f / (float)frame_number;
-    float b = ((float)frame_number - 1.0f) * a;
-    const float3 old_color = read_output();
-    write_output(a * prd.result + b * old_color);
+
+// Will trace this pixel only if it is the center of a block of size block_size.  
+static __device__ __inline__ void coarseTrace( const uint2& index, unsigned int block_size )
+{
+  if ( shouldTrace( index, block_size ) ) {
+    float3 result = trace( make_float2( index ) ); 
+    fill( index, result, block_size );
+  }
+}
+
+static __device__ __inline__ float3 jittered_trace( const uint2& index )
+{
+    // Trace a randomly offset ray within the pixel
+    volatile unsigned int seed  = rnd_seeds[ index ]; // volatile workaround for cuda 2.0 bug
+    unsigned int new_seed  = seed;
+    float uu = rnd( new_seed )-0.5f;
+    float vv = rnd( new_seed )-0.5f;
+    rnd_seeds[ launch_index ] = new_seed;
+
+    float2 offset = make_float2( uu, vv );
+    float3 result = trace( offset + make_float2( index ) );
+
+    return result;
+}
+
+RT_PROGRAM void pinhole_camera()
+{
+  if      ( frame_number == 0 ) coarseTrace( launch_index, 8u );
+  else if ( frame_number == 1 ) coarseTrace( launch_index, 4u );
+  else if ( frame_number == 2 ) coarseTrace( launch_index, 2u );
+  else if ( frame_number == 3 ) {
+
+    float3 result = jittered_trace( launch_index );
+    output_buffer[ launch_index ] = make_color( result );
+
+    // Update buffers
+    num_samples_buffer[ launch_index ]   = 1u;
+    variance_sum_buffer[ launch_index ]  = make_float4(result, 0.0f);
+    variance_sum2_buffer[ launch_index ] = make_float4(result*result, 0.0f);
   }
   else
   {
-    write_output(prd.result);
+    {
+      // ns < 0x80000000 means the variance is too high and we should keep rendering.
+      volatile unsigned int ns = num_samples_buffer[ launch_index ];
+      if ( (ns & 0x80000000) && (((launch_index.y >> 3) & 0x3) != (frame_number & 0x3)) ) {
+        return;
+      }
+    }
+
+    float3 new_color = jittered_trace( launch_index );
+  
+    // Add in new ray's contribution
+    volatile unsigned int ns = num_samples_buffer[ launch_index ] & ~0x80000000; // volatile workaround for Cuda 2.0 bug
+    float  new_value_weight = 1.0f / (float)ns;
+    //float  new_value_weight = 1.0f;
+    float  old_value_weight = 1.0f - new_value_weight;
+    float4& old_bytes = output_buffer[ launch_index ];
+    float3 old_color = make_float3(old_bytes.x, old_bytes.y, old_bytes.z);
+    float3 result = old_color*old_value_weight + new_color*new_value_weight;
+
+    // Update buffers
+    output_buffer[ launch_index ] = make_color(result); 
+    float4 vsum  = variance_sum_buffer[ launch_index ];
+    float4 vsum2 = variance_sum2_buffer[ launch_index ];
+    // Compute the variance of the series of displayed pixels over time. This variance will go to zero, regardless of the variance of the sample values.
+    variance_sum_buffer[ launch_index ]  = vsum  = vsum  + make_float4( result, 0.0f );
+    variance_sum2_buffer[ launch_index ] = vsum2 = vsum2 + make_float4( result*result, 0.0f );
+    ns++;
+
+    // If we are beyond our first four samples per pixel, check variance
+    if ( frame_number > 6 ) {
+      float3 rgb_variance = ( make_float3( vsum2 ) - make_float3( vsum ) * make_float3( vsum ) * new_value_weight ) * new_value_weight;
+      
+      float variance = optix::luminance( rgb_variance ); 
+      // render an 8-row span every 32 rows regardless. This shape lets entire warps turn off.
+      if ( variance < 0.001f ) {
+        ns = ns | 0x80000000;
+      }
+    }
+
+    num_samples_buffer[ launch_index ] = ns;
   }
-#endif
 }
+
 
 RT_PROGRAM void exception()
 {
-  write_output(bad_color);
+  const unsigned int code = rtGetExceptionCode();
+  rtPrintf( "Caught exception 0x%X at launch index (%d,%d)\n", code, launch_index.x, launch_index.y );
+  output_buffer[launch_index] = make_color(bad_color);
 }
