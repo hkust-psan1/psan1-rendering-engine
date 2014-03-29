@@ -71,7 +71,7 @@ void parseMtlFile(Material mat) {
 
 class SceneObject {
 public:
-	SceneObject(Context c) : m_context(c), m_mass(0) {
+	SceneObject(Context c) : m_context(c) {
 		m_initialTransformMtx = NULL;
 
 		m_emissive = false;
@@ -142,12 +142,10 @@ public:
 		*/
 		m_transform->setChild(group);
 
-		parseMtlFile(mat);
+		// parseMtlFile(mat);
 	}
 
 	inline Transform getTransform() const { return m_transform; };
-
-	btScalar m_mass;
 
 	std::string m_renderObjFilename;
 	std::string m_diffuseMapFilename;
@@ -202,7 +200,7 @@ public:
 
 class PhysicalObject : public SceneObject {
 public:
-	PhysicalObject(Context c) : SceneObject(c) {
+	PhysicalObject(Context c) : SceneObject(c), m_mass(0) {
 	}
 
 	virtual void initPhysics(std::string prog_path) {
@@ -357,8 +355,6 @@ public:
 		float ty = origin.getY();
 		float tz = origin.getZ();
 
-		// printFloat3(make_float3(tx, ty, tz));
-
 		btQuaternion quaternion = trans.getRotation();
 		float qx = quaternion.getX();
 		float qy = quaternion.getY();
@@ -381,12 +377,14 @@ public:
 	std::string m_physicsObjFilename;
 protected:
 	btRigidBody* m_rigidBody;
+
+	btScalar m_mass;
 };
 
 class Ball : public PhysicalObject {
 public:
 	Ball(Context c) : PhysicalObject(c) {
-		m_mass = 20;
+		m_mass = 6;
 
 		m_kr = make_float3(0.3, 0.3, 0.3);
 		m_ns = 10;

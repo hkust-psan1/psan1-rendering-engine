@@ -19,12 +19,10 @@
  * SUCH DAMAGES
  */
 
-//------------------------------------------------------------------------------
-//
-//  A glass shader example.
-//
-//------------------------------------------------------------------------------
 
+#include <Windows.h>
+#include <stdio.h>
+#include <conio.h>
 
 #include <optixu/optixpp_namespace.h>
 #include <optixu/optixu_math_namespace.h>
@@ -41,15 +39,17 @@
 #include "commonStructs.h"
 #include <string.h>
 
+#include <FL\Fl.H>
+#include <FL\Fl_Window.H>
+#include <FL\Fl_Button.H>
+
 #include "bowling_pin.h"
 
-using namespace optix;
+namespace OptixControl {
+	bool animation = false;
+};
 
-//------------------------------------------------------------------------------
-//
-//  Glass scene 
-//
-//------------------------------------------------------------------------------
+using namespace optix;
 
 inline float random1()
 {
@@ -83,6 +83,11 @@ public:
   void   doResize( unsigned int width, unsigned int depth );
   Buffer getOutputBuffer();
   bool keyPressed(unsigned char key, int x, int y);
+  
+void printRandomMsg() {
+	printf("nimas\n");
+}
+
 
 private:
 	void initObjects(const std::string& path);
@@ -163,17 +168,19 @@ Buffer GlassScene::getOutputBuffer()
 
 void GlassScene::trace( const RayGenCameraData& camera_data )
 {
-	/* apply transformation obtained from bullet physics */
-	world->stepSimulation(1 / 200.f, 10);
+	if (OptixControl::animation) {
+		/* apply transformation obtained from bullet physics */
+		world->stepSimulation(1 / 200.f, 10);
 
-	for (int i = 0; i < sceneObjects.size(); i++) {
-		PhysicalObject* po = dynamic_cast<PhysicalObject*>(sceneObjects[i]);
-		if (po) {
-			po->step();
+		for (int i = 0; i < sceneObjects.size(); i++) {
+			PhysicalObject* po = dynamic_cast<PhysicalObject*>(sceneObjects[i]);
+			if (po) {
+				po->step();
+			}
 		}
-	}
 
-	g->getAcceleration()->markDirty();
+		g->getAcceleration()->markDirty();
+	}
 
 	/* Optix rendering settings */
   if ( m_camera_changed ) 
@@ -470,7 +477,7 @@ void GlassScene::initObjects(const std::string& res_path) {
 		make_float3(3 * unitX, initY, 3 * unitZ) + pinBasePosition,
 	};
 
-	for (int i = 0; i < 1; i++) {
+	for (int i = 0; i < 10; i++) {
 		BowlingPin* pin = new BowlingPin(m_context);
 		pin->initGraphics(mesh_path, mat_path, res_path);
 		pin->initPhysics(res_path);
@@ -482,8 +489,17 @@ void GlassScene::initObjects(const std::string& res_path) {
 	ball->initGraphics(mesh_path, mat_path, res_path);
 	ball->initPhysics(res_path);
 	ball->setInitialPosition(make_float3(-10, 0, 0));
-	ball->getRigidBody()->setLinearVelocity(btVector3(10, 0, 0));
+	ball->getRigidBody()->setLinearVelocity(btVector3(20, 0, 1));
 	sceneObjects.push_back(ball);
+
+	/*
+	PhysicalObject* rightDitch = new PhysicalObject(m_context);
+	rightDitch->m_renderObjFilename = "/simple.obj";
+	rightDitch->m_physicsObjFilename = "/simple.obj";
+	rightDitch->initGraphics(mesh_path, mat_path, res_path);
+	rightDitch->initPhysics(res_path);
+	sceneObjects.push_back(rightDitch);
+	*/
 
 	SceneObject* banner = new SceneObject(m_context);
 	banner->m_renderObjFilename = "/banner.obj";
@@ -548,7 +564,6 @@ void GlassScene::initObjects(const std::string& res_path) {
 	m_context["area_lights"]->set(areaLightBuffer);
 }
 
-
 void GlassScene::makeMaterialPrograms( Material material, const char *filename, 
                                                           const char *ch_program_name,
                                                           const char *ah_program_name )
@@ -588,9 +603,37 @@ void printUsageAndExit( const std::string& argv0, bool doExit = true )
   if ( doExit ) exit(1);
 }
 
+class ObjPreprocessor {
+public:
+};
+
+void buttonCallback() {
+	OptixControl::animation = true;
+}
+
+DWORD WINAPI showControlDialog(LPVOID lpParam) {
+	Fl_Window* window = new Fl_Window(400, 300);
+
+	window->begin();
+
+	Fl_Button* button = new Fl_Button(0, 0, 200, 50, "start");
+	button->callback((Fl_Callback*) buttonCallback);
+
+	window->end();
+	window->show();
+
+	return Fl::run();
+}
 
 int main(int argc, char* argv[])
 {
+	GlassScene* scene;
+
+	HANDLE hThread;
+	DWORD threadID;
+
+	hThread = CreateThread(NULL, 0, showControlDialog, NULL, 0, &threadID);
+
   GLUTDisplay::init( argc, argv );
 
   bool adaptive_aa = true;  // Default to true for now
@@ -622,12 +665,15 @@ int main(int argc, char* argv[])
   }
 
   try {
-    GlassScene scene( obj_path, adaptive_aa, green_glass );
+	  scene = new GlassScene( obj_path, adaptive_aa, green_glass );
     GLUTDisplay::setTextColor( make_float3( 0.6f, 0.1f, 0.1f ) );
     GLUTDisplay::setTextShadowColor( make_float3( 0.9f ) );
-	GLUTDisplay::run( "GlassScene", &scene, adaptive_aa ? GLUTDisplay::CDProgressive : GLUTDisplay::CDProgressive );
+	GLUTDisplay::run( "GlassScene", scene, adaptive_aa ? GLUTDisplay::CDProgressive : GLUTDisplay::CDProgressive );
+
+
   } catch( Exception& e ){
     sutilReportError( e.getErrorString().c_str() );
     exit(1);
   }
+
 }
