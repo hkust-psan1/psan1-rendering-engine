@@ -30,14 +30,9 @@ if(GLUT_FOUND AND OPENGL_FOUND)
     # These files are common among multiple samples
     dof_camera.cu
     adaptive_pinhole_camera.cu
+    pinhole_camera.cu
     phong.cu
     gradientbg.cu
-    helpers.h
-    intersection_refinement.h
-    pinhole_camera.cu
-    random.h
-    commonStructs.h
-    bowling_pin.h
     triangle_mesh_iterative.cu
     )
 

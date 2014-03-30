@@ -165,7 +165,6 @@ namespace GUIControl {
 		} else { // reset
 			startButton->label("start");
 
-			pauseButton->label("pause");
 			pauseButton->deactivate();
 
 			ballVelocityZSlider->activate();
@@ -574,7 +573,7 @@ void BowlingScene::initObjects() {
 	groundPlane->initPhysics(m_obj_path);
 	sceneObjects.push_back(groundPlane);
 
-	for (int i = 0; i < 10; i++) {
+	for (int i = 0; i < 1; i++) {
 		BowlingPin* pin = new BowlingPin(m_context);
 		pin->initGraphics(mesh_path, mat_path, m_obj_path);
 		pin->initPhysics(m_obj_path);
@@ -710,7 +709,6 @@ int main(int argc, char* argv[])
 
   GLUTDisplay::init( argc, argv );
 
-  bool adaptive_aa = true;  // Default to true for now
   std::string obj_path;
   for ( int i = 1; i < argc; ++i ) {
     std::string arg( argv[i] );
@@ -735,11 +733,10 @@ int main(int argc, char* argv[])
   }
 
   try {
-	  scene = new BowlingScene( obj_path, adaptive_aa);
+	  scene = new BowlingScene(obj_path, 2); // pinhole camera
     GLUTDisplay::setTextColor( make_float3( 0.6f, 0.1f, 0.1f ) );
     GLUTDisplay::setTextShadowColor( make_float3( 0.9f ) );
 	GLUTDisplay::run( "BowlingScene", scene, GLUTDisplay::CDProgressive );
-
 
   } catch( Exception& e ){
     sutilReportError( e.getErrorString().c_str() );

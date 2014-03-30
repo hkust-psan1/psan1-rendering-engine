@@ -11,14 +11,13 @@
 #include <btBulletCollisionCommon.h>
 #include <BulletCollision\CollisionShapes\btShapeHull.h>
 #include <ConvexDecomposition\ConvexDecomposition.h>
+#include <ConvexDecomposition\cd_wavefront.h>
 
 #include "HACD\hacdCircularList.h"
 #include "HACD\hacdVector.h"
 #include "HACD\hacdICHull.h"
 #include "HACD\hacdGraph.h"
 #include "HACD\hacdHACD.h"
-
-#include <cd_wavefront.h>
 
 #include <assert.h>
 
