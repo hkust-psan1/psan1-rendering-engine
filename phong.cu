@@ -23,11 +23,13 @@
 #include <optixu/optixu_math_namespace.h>
 #include "helpers.h"
 #include "commonStructs.h"
+#include "random.h"
 
 using namespace optix;
 
-rtDeclareVariable(unsigned int, thread_index, attribute thread_index, );
-// rtDeclareVariable(unsigned int, thread_index, rtLaunchIndex, );
+// rtDeclareVariable(unsigned int, thread_index, attribute thread_index, );
+rtDeclareVariable(uint2, thread_index, rtLaunchIndex, );
+rtDeclareVariable(uint2, thread_dim, rtLaunchDim, );
 
 rtDeclareVariable(rtObject, top_object, , );
 rtDeclareVariable(rtObject, top_shadower, , );
@@ -100,6 +102,11 @@ static __device__ __inline__ float3 TraceRay(float3 origin, float3 direction, in
 
   rtTrace( top_object, ray, prd );
   return prd.result;
+}
+
+static __device__ int rand_lcg(int& rng_state) {
+    rng_state = 1664525 * rng_state + 1013904223;
+    return rng_state;
 }
 
 static __device__ int xorshift(int& rng_state) {
@@ -181,16 +188,17 @@ RT_PROGRAM void closest_hit_radiance()
 	// BasicLight light = lights[i];
 	RectangleLight light = area_lights[i];
 
-	int rand_index = thread_index % 1000;
+	// int rand_index = thread_index % 1000;
 
 	const int numSamples = 50;
 
-	int rng_state = thread_index;
+	unsigned int rng_state = tea<16>(thread_index.y * thread_dim.x + thread_index.x, thread_index.y);
 
 	for (int j = 0; j < numSamples; j++) {
 		// random pair
 		// float2 rp = rand_pairs[rand_index + j * 7];
-		float2 rp = make_float2(rand0to1(xorshift(rng_state)), rand0to1(xorshift(rng_state)));
+		// float2 rp = make_float2(rand0to1(xorshift(rng_state)), rand0to1(xorshift(rng_state)));
+		float2 rp = make_float2(rnd(rng_state), rnd(rng_state));
 
 		float3 sampledPos = light.pos + rp.x * light.r1 + rp.y * light.r2;
 		float Ldist = length(sampledPos - fhp);
