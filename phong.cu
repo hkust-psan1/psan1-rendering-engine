@@ -27,6 +27,9 @@
 
 using namespace optix;
 
+// use offline rendering
+// #define OFFLINE
+
 // rtDeclareVariable(unsigned int, thread_index, attribute thread_index, );
 rtDeclareVariable(uint2, thread_index, rtLaunchIndex, );
 rtDeclareVariable(uint2, thread_dim, rtLaunchDim, );
@@ -104,22 +107,6 @@ static __device__ __inline__ float3 TraceRay(float3 origin, float3 direction, in
   return prd.result;
 }
 
-static __device__ int rand_lcg(int& rng_state) {
-    rng_state = 1664525 * rng_state + 1013904223;
-    return rng_state;
-}
-
-static __device__ int xorshift(int& rng_state) {
-	rng_state ^= (rng_state << 13);
-    rng_state ^= (rng_state >> 17);
-    rng_state ^= (rng_state << 5);
-    return rng_state;
-}
-
-static __device__ float rand0to1(int rand_int) {
-	return float(rand_int) * (1.0 / 4294967296.0);
-}
-
 RT_PROGRAM void any_hit_shadow()
 {
   prd_shadow.attenuation = make_float3(0.0f);
@@ -188,19 +175,22 @@ RT_PROGRAM void closest_hit_radiance()
 	// BasicLight light = lights[i];
 	RectangleLight light = area_lights[i];
 
-	// int rand_index = thread_index % 1000;
-
-	const int numSamples = 50;
-
+#ifdef OFFLINE
+	const int numSamples = 10;
 	unsigned int rng_state = tea<16>(thread_index.y * thread_dim.x + thread_index.x, thread_index.y);
+#else
+	const int numSamples = 1;
+#endif
 
 	for (int j = 0; j < numSamples; j++) {
-		// random pair
-		// float2 rp = rand_pairs[rand_index + j * 7];
-		// float2 rp = make_float2(rand0to1(xorshift(rng_state)), rand0to1(xorshift(rng_state)));
-		float2 rp = make_float2(rnd(rng_state), rnd(rng_state));
 
+#ifdef OFFLINE
+		float2 rp = make_float2(rnd(rng_state), rnd(rng_state));
 		float3 sampledPos = light.pos + rp.x * light.r1 + rp.y * light.r2;
+#else
+		float3 sampledPos = light.pos;
+#endif
+
 		float Ldist = length(sampledPos - fhp);
 
 		float3 L = normalize(sampledPos - fhp);

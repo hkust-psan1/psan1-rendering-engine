@@ -70,17 +70,25 @@ RT_PROGRAM void pinhole_camera()
 #ifdef TIME_VIEW
   clock_t t0 = clock(); 
 #endif
-  float2 d = make_float2(launch_index) / make_float2(launch_dim) * 2.f - 1.f;
-  float3 ray_origin = eye;
-  float3 ray_direction = normalize(d.x*U + d.y*V + W);
-  
-  optix::Ray ray = optix::make_Ray(ray_origin, ray_direction, radiance_ray_type, scene_epsilon, RT_DEFAULT_MAX);
+	float3 result = make_float3(0, 0, 0);
 
-  PerRayData_radiance prd;
-  prd.importance = 1.f;
-  prd.depth = 0;
+	for (float i = 0; i <= 1; i += 0.25) {
+		for (float j = 0; j <= 1; j += 0.25) {
+			PerRayData_radiance prd;
+			prd.importance = 1.f;
+			prd.depth = 0;
 
-  rtTrace(top_object, ray, prd);
+			float2 d = (make_float2(launch_index) + make_float2(i, j)) / make_float2(launch_dim) * 2.f - 1.f;
+			float3 ray_origin = eye;
+			float3 ray_direction = normalize(d.x * U + d.y * V + W);
+
+			optix::Ray ray = optix::make_Ray(ray_origin, ray_direction, radiance_ray_type, scene_epsilon, RT_DEFAULT_MAX);
+
+			rtTrace(top_object, ray, prd);
+
+			result += prd.result / 16.f;
+		}
+	}
 
 #ifdef TIME_VIEW
   clock_t t1 = clock(); 
@@ -89,7 +97,8 @@ RT_PROGRAM void pinhole_camera()
   float pixel_time     = ( t1 - t0 ) * time_view_scale * expected_fps;
   write_output( make_float3( pixel_time ) );
 #else
-    write_output(prd.result);
+    // write_output(prd.result);
+    write_output(result);
 #endif
 }
 
