@@ -23,6 +23,8 @@
 #include <stdio.h>
 #include <conio.h>
 
+#include <ctime>
+
 #include <optixu/optixpp_namespace.h>
 #include <optixu/optixu_math_namespace.h>
 #include <optixu/optixu_matrix_namespace.h>
@@ -278,12 +280,14 @@ void BowlingScene::trace( const RayGenCameraData& camera_data )
 {
 
 	if (GUIControl::onAnimation) { // when animation is on, step simulation
-		world->stepSimulation(1 / 200.f, 10);
+		world->stepSimulation(1 / 100.f, 10);
 	}
 
 	// re-position objects according to simulation result
 	for (int i = 0; i < sceneObjects.size(); i++) {
-		PhysicalObject* po = dynamic_cast<PhysicalObject*>(sceneObjects[i]);
+		SceneObject* so = sceneObjects[i];
+
+		PhysicalObject* po = dynamic_cast<PhysicalObject*>(so);
 		if (po) {
 			po->step();
 		}
@@ -407,9 +411,7 @@ void  BowlingScene::createContext( InitialCameraData& camera_data )
   // Setup lighting
   BasicLight lights[] = 
   { 
-    { make_float3( -30.0f,  20.0f, -80.0f ), make_float3( 0.6f, 0.5f, 0.4f ), 1 },
-    { make_float3( -30.0f,  -20.0f, -80.0f ), make_float3( 0.6f, 0.5f, 0.4f ), 1 },
-    { make_float3(  10.5f,  30.0f, 20.5f ), make_float3( 0.65f, 0.65f, 0.6f ), 1 },
+    { make_float3( 20.0f,  20.0f, 20.0f ), make_float3( 0.6f, 0.5f, 0.4f ), 3 },
   };
 
   Buffer light_buffer = m_context->createBuffer(RT_BUFFER_INPUT);
@@ -659,6 +661,19 @@ void BowlingScene::initObjects() {
 	memcpy(areaLightBuffer->map(), areaLightArray, sizeof(RectangleLight) * areaLights.size());
 	areaLightBuffer->unmap();
 	m_context["area_lights"]->set(areaLightBuffer);
+
+	const int randPairBufferSize = 1000;
+	float2 randPairs[randPairBufferSize];
+	for (int i = 0; i < randPairBufferSize; i++) {
+		randPairs[i] = random2();
+	}
+	Buffer randPairBuffer = m_context->createBuffer(RT_BUFFER_INPUT);
+	randPairBuffer->setFormat(RT_FORMAT_USER);
+	randPairBuffer->setElementSize(sizeof(float2));
+	randPairBuffer->setSize(randPairBufferSize);
+	memcpy(randPairBuffer->map(), &randPairs[0], sizeof(float2) * randPairBufferSize);
+	randPairBuffer->unmap();
+	m_context["rand_pairs"]->set(randPairBuffer);
 }
 
 void BowlingScene::makeMaterialPrograms( Material material, const char *filename, 
@@ -702,6 +717,8 @@ void printUsageAndExit( const std::string& argv0, bool doExit = true )
 
 int main(int argc, char* argv[])
 {
+	srand(time(0));
+
 	HANDLE hThread;
 	DWORD threadID;
 

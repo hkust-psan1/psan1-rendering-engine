@@ -26,6 +26,9 @@
 
 using namespace optix;
 
+rtDeclareVariable(unsigned int, thread_index, attribute thread_index, );
+// rtDeclareVariable(unsigned int, thread_index, rtLaunchIndex, );
+
 rtDeclareVariable(rtObject, top_object, , );
 rtDeclareVariable(rtObject, top_shadower, , );
 rtDeclareVariable(float, scene_epsilon, , );
@@ -70,6 +73,7 @@ rtTextureSampler<float4, 2>		normal_map;
 
 rtBuffer<BasicLight> lights;
 rtBuffer<RectangleLight> area_lights;
+rtBuffer<float2> rand_pairs;
 
 struct PerRayData_radiance
 {
@@ -98,6 +102,16 @@ static __device__ __inline__ float3 TraceRay(float3 origin, float3 direction, in
   return prd.result;
 }
 
+static __device__ int xorshift(int& rng_state) {
+	rng_state ^= (rng_state << 13);
+    rng_state ^= (rng_state >> 17);
+    rng_state ^= (rng_state << 5);
+    return rng_state;
+}
+
+static __device__ float rand0to1(int rand_int) {
+	return float(rand_int) * (1.0 / 4294967296.0);
+}
 
 RT_PROGRAM void any_hit_shadow()
 {
@@ -166,22 +180,37 @@ RT_PROGRAM void closest_hit_radiance()
   for (int i = 0; i < num_lights; i++) {
 	// BasicLight light = lights[i];
 	RectangleLight light = area_lights[i];
-	float Ldist = length(light.pos - fhp);
 
-    float3 L = normalize(light.pos - fhp);
-	float3 H = normalize(L - ray.direction);
-	// float nDl = dot(N, L);
-	float nDl = dot(normal, L);
+	int rand_index = thread_index % 1000;
 
-	// cast shadow ray
-    PerRayData_shadow shadow_prd;
-    shadow_prd.attenuation = make_float3(1);
+	const int numSamples = 50;
 
-	if(nDl > 0) {
-      optix::Ray shadow_ray = optix::make_Ray( fhp, L, shadow_ray_type, scene_epsilon, Ldist );
-      rtTrace(top_shadower, shadow_ray, shadow_prd);
-	  result += light.color * shadow_prd.attenuation * (kd * nDl + ks * max(pow(dot(H, normal), ns), .0f));
-    }
+	int rng_state = thread_index;
+
+	for (int j = 0; j < numSamples; j++) {
+		// random pair
+		// float2 rp = rand_pairs[rand_index + j * 7];
+		float2 rp = make_float2(rand0to1(xorshift(rng_state)), rand0to1(xorshift(rng_state)));
+
+		float3 sampledPos = light.pos + rp.x * light.r1 + rp.y * light.r2;
+		float Ldist = length(sampledPos - fhp);
+
+		float3 L = normalize(sampledPos - fhp);
+		float3 H = normalize(L - ray.direction);
+		// float nDl = dot(N, L);
+		float nDl = dot(normal, L);
+
+		// cast shadow ray
+		PerRayData_shadow shadow_prd;
+		shadow_prd.attenuation = make_float3(1);
+
+		if(nDl > 0) {
+		  optix::Ray shadow_ray = optix::make_Ray( fhp, L, shadow_ray_type, scene_epsilon, Ldist );
+		  rtTrace(top_shadower, shadow_ray, shadow_prd);
+		  result += light.color * shadow_prd.attenuation 
+			  * (kd * nDl + ks * max(pow(dot(H, normal), ns), .0f)) / numSamples;
+		}
+	}
   }
 
   if (depth < min(reflection_maxdepth, max_depth))

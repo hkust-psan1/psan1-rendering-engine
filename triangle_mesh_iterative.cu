@@ -30,6 +30,8 @@ using namespace optix;
 // This is to be plugged into an RTgeometry object to represent
 // a triangle mesh with a vertex buffer of triangle soup (triangle list)
 // with an interleaved position, normal, texturecoordinate layout.
+ 
+rtDeclareVariable(unsigned int, thread_index, attribute thread_index, );
 
 rtBuffer<float3> vertex_buffer;     
 rtBuffer<float3> normal_buffer;
@@ -54,6 +56,8 @@ RT_PROGRAM void mesh_intersect( int primIdx )
 	// primIdx is the index to find the primitive (e.g. triangle in most cases)
 	// v_idx is the index to find the vertex data of that primitive (triangle)
   int3 v_idx = vindex_buffer[primIdx];
+
+	thread_index = v_idx.x * v_idx.y * v_idx.z;
 
   float3 p0 = vertex_buffer[ v_idx.x ];
   float3 p1 = vertex_buffer[ v_idx.y ];
