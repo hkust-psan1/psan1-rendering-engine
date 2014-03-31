@@ -76,8 +76,8 @@ RT_PROGRAM void pinhole_camera()
 	float pixel_time		 = ( t1 - t0 ) * time_view_scale * expected_fps;
 	write_output( make_float3( pixel_time ) );
 #else
-		// write_output(prd.result);
-		write_output(result);
+	// write_output(prd.result);
+	write_output(result);
 #endif
 }
 

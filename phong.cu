@@ -7,7 +7,7 @@
 using namespace optix;
 
 // use offline rendering
-// #define OFFLINE
+#define OFFLINE
 
 // rtDeclareVariable(unsigned int, thread_index, attribute thread_index, );
 rtDeclareVariable(uint2, thread_index, rtLaunchIndex, );
@@ -73,6 +73,31 @@ struct PerRayData_shadow
 rtDeclareVariable(PerRayData_radiance, prd_radiance, rtPayload, );
 rtDeclareVariable(PerRayData_shadow, prd_shadow, rtPayload, );
 
+#define PI 3.1415926
+
+/*  randomize a vector based on normal distribution, used for 
+    normal vectors in glossy reflection and refraction */
+static __device__ float3 randomizeVector(const float3& v, float amount, unsigned int& seed) {
+	// two random number for normal distribution
+	float rand1 = rnd(seed), rand2 = rnd(seed);
+
+	float X = sqrt(- 2 * log(rand1)) * cos(2 * PI * rand2) * amount;
+	float Y = sqrt(- 2 * log(rand1)) * sin(2 * PI * rand2) * amount;
+
+	float3 u = v;
+	u.x += 1;
+
+	float3 e1 = cross(u, v);
+	float3 e2 = cross(v, e1);
+
+	normalize(e1);
+	normalize(e2);
+
+	float3 rand_vec = v + e1 * X + e2 * Y;
+	normalize(rand_vec);
+
+	return rand_vec;
+}
 
 static __device__ __inline__ float3 TraceRay(float3 origin, float3 direction, int depth, float importance )
 {
@@ -93,8 +118,6 @@ RT_PROGRAM void any_hit_shadow()
 	}
 }
 
-// -----------------------------------------------------------------------------
-
 RT_PROGRAM void closest_hit_radiance()
 {
 	if (is_emissive) {
@@ -102,7 +125,7 @@ RT_PROGRAM void closest_hit_radiance()
 	return;
 	}
 
-	const float3 i = ray.direction; 
+	const float3 ray_dir = ray.direction; 
 	const float3 uvw = texcoord;
 
 	float3 kd;
@@ -143,11 +166,10 @@ RT_PROGRAM void closest_hit_radiance()
 
 	const int depth = prd_radiance.depth;
 	float3 result = kd * ambient_light_color;
-	float3 r;
-	float reflection = 1.0f;
+
+	// seed used for random number generation
+	unsigned int seed = tea<16>(thread_index.y * thread_dim.x + thread_index.x, thread_index.y);;
 		
-	float3 color = cutoff_color;
-	
 	// unsigned int num_lights = lights.size();
 	unsigned int num_lights = area_lights.size();
 
@@ -157,14 +179,14 @@ RT_PROGRAM void closest_hit_radiance()
 
 #ifdef OFFLINE
 		const int numSamples = 10;
-		unsigned int rng_state = tea<16>(thread_index.y * thread_dim.x + thread_index.x, thread_index.y);
+		
 #else
 		const int numSamples = 1;
 #endif
 
 		for (int j = 0; j < numSamples; j++) {
 #ifdef OFFLINE
-			float2 rp = make_float2(rnd(rng_state), rnd(rng_state));
+			float2 rp = make_float2(rnd(seed), rnd(seed));
 			float3 sampledPos = light.pos + rp.x * light.r1 + rp.y * light.r2;
 #else
 			float3 sampledPos = light.pos;
@@ -190,17 +212,31 @@ RT_PROGRAM void closest_hit_radiance()
 		}
 	}
 
+	float3 refl_color = make_float3(0, 0, 0);
+	float reflection = 1.0f;
+
 	if (depth < min(reflection_maxdepth, max_depth)) {
-		// r = reflect(i, N);
-		r = reflect(i, normal);
-			
-		float importance = prd_radiance.importance * reflection * optix::luminance( kr * beer_attenuation );
-		if ( importance > importance_cutoff ) {
-			color = TraceRay( fhp, r, depth+1, importance );
+		// reflection direction
+		const float3 r = reflect(ray_dir, normal);
+		float importance = prd_radiance.importance * reflection * optix::luminance(kr * beer_attenuation);
+
+		// number of samples to take for each reflection
+#ifdef OFFLINE
+		const int numGlossySample = 10;
+		
+		if (importance > importance_cutoff) {
+			for (int i = 0; i < numGlossySample; i++) {
+				float3 randomizedRefl = randomizeVector(r, 0.1, seed);
+				refl_color += TraceRay(fhp, randomizedRefl, depth + 1, importance / float(numGlossySample));
+			}
 		}
+		refl_color /= numGlossySample;
+#else
+		refl_color = TraceRay(fhp, r, depth + 1, importance) / float(numGlossySample);
+#endif
 	}
 
-	result += kd * reflection * kr * color;
+	result += kd * reflection * kr * refl_color;
 	
 	prd_radiance.result = result;
 }

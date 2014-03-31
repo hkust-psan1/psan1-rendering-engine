@@ -82,7 +82,7 @@ public:
 		m_ke = make_float3(0, 0, 0);
 		m_ka = make_float3(0.2, 0.2, 0.2);
 		m_kd = make_float3(0.5, 0.5, 0.5);
-		m_ks = make_float3(0.8, 0.8, 0.8);
+		m_ks = make_float3(0.3, 0.3, 0.3);
 		m_kr = make_float3(0, 0, 0);
 		m_ns = 10;
 
@@ -448,7 +448,7 @@ public:
 		m_mass = 0;
 
 		m_ka = make_float3(0.2, 0.2, 0.2);
-		m_kr = make_float3(0, 0, 0);
+		m_kr = make_float3(0.5, 0.5, 0.5);
 		m_ns = 5;
 
 		m_renderObjFilename = "/lane-4.obj";
