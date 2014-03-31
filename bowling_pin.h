@@ -477,6 +477,4 @@ public:
 private:
 };
 
-
-
 #endif
