@@ -1,7 +1,7 @@
 #include <optix.h>
 #include <optixu/optixu_math_namespace.h>
 #include "helpers.h"
-#include "commonStructs.h"
+#include "common_structs.h"
 #include "random.h"
 
 using namespace optix;

@@ -9,9 +9,11 @@
 
 class ObjFileProcessor {
 public:
-	void processObject(std::string filename, std::string targetDir) {
+	std::vector<SceneObject*> processObject(std::string filename, std::string targetDir) {
 		processObjFile(filename + ".obj", targetDir);
 		processMtlFile(filename + ".mtl", targetDir);
+
+		std::vector<SceneObject*> sceneObjects;
 
 		for (auto it = objMtlMap.begin(); it != objMtlMap.end(); it++) {
 			std::cout << "Processing object: " << it->first << std::endl;
@@ -19,7 +21,16 @@ public:
 			SceneObject* so = new SceneObject();
 			so->initGraphics(targetDir + it->first, targetDir + it->second);
 			sceneObjects.push_back(so);
+
+			if (it->first.find("Cube")) {
+				Collider* c = new Collider;
+				c->setMass(1);
+				c->initPhysics(targetDir + it->first);
+				so->attachCollider(c);
+			}
 		}
+
+		return sceneObjects;
 	}
 
 	void processMtlFile(std::string filename, std::string targetDir) {
@@ -143,8 +154,6 @@ public:
 		}
 		output.close();
 	}
-
-	std::vector<SceneObject*> sceneObjects;
 
 private:
 	std::vector<std::string> objLines;
