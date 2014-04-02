@@ -55,7 +55,7 @@ rtTextureSampler<float4, 2> kd_map;
 rtTextureSampler<float4, 2> ks_map;
 rtTextureSampler<float4, 2> normal_map;
 
-rtBuffer<BasicLight> lights;
+// rtBuffer<BasicLight> lights;
 rtBuffer<RectangleLight> area_lights;
 
 struct PerRayData_radiance

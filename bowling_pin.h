@@ -34,47 +34,9 @@ void printBtVector(btVector3 v) {
 	printf("%.3f\t%.3f\t%.3f\n", v.x(), v.y(), v.z());
 }
 
-float3 float3FromString(std::string s) {
-	std::stringstream ss(s);
-	std::string seg;
-
-	float f[3];
-
-	for (int i = 0; i < 3; i++) {
-		getline(ss, seg, ' ');
-
-		f[i] = atof(seg.c_str());
-	}
-
-	return make_float3(f[0], f[1], f[2]);
-}
-
-void parseMtlFile(Material mat) {
-	std::string filename = "D:/OptiX SDK 3.0.1/SDK - Copy/glass/banner.mtl";
-	std::ifstream mtlInput(filename);
-
-	std::vector<std::string> lines;
-
-	for (std::string line; getline(mtlInput, line); ) {
-		std::stringstream ss(line);
-
-		std::string type, value;
-		getline(ss, type, ' ');
-		getline(ss, value, '\n');
-		
-		if (type == "Ka") {
-			mat["k_ambient"]->setFloat(float3FromString(value));
-		} else if (type == "Kd") {
-			mat["k_diffuse"]->setFloat(float3FromString(value));
-		} else if (type == "Ks") {
-			mat["k_specular"]->setFloat(float3FromString(value));
-		}
-	}
-}
-
 class SceneObject {
 public:
-	SceneObject(Context c) : m_context(c) {
+	SceneObject() {
 		m_initialTransformMtx = NULL;
 
 		m_emissive = false;
@@ -85,21 +47,68 @@ public:
 		m_ks = make_float3(0.3, 0.3, 0.3);
 		m_kr = make_float3(0, 0, 0);
 		m_ns = 10;
-
-		// m_normalMapFilename = "/default_normal.ppm";
-		// m_specularMapFilename = "/default_specular.ppm";
 	}
 
-	virtual void initGraphics(std::string prog_path, std::string mat_path, std::string res_path) {
-		m_objPath = res_path + m_renderObjFilename;
+	float3 float3FromString(std::string s) {
+		std::stringstream ss(s);
+		std::string seg;
 
-		Material mat = m_context->createMaterial();
+		float f[3];
 
-		Program closestHit = m_context->createProgramFromPTXFile(mat_path, "closest_hit_radiance");
-		Program anyHit = m_context->createProgramFromPTXFile(mat_path, "any_hit_shadow");
+		for (int i = 0; i < 3; i++) {
+			getline(ss, seg, ' ');
 
-		mat->setClosestHitProgram(0, closestHit);
-		mat->setAnyHitProgram(1, anyHit);
+			f[i] = atof(seg.c_str());
+		}
+
+		return make_float3(f[0], f[1], f[2]);
+	}
+
+	void parseMtlFile(Material mat, std::string mtl_path) {
+		std::ifstream mtlInput(mtl_path);
+
+		std::vector<std::string> lines;
+
+		for (std::string line; getline(mtlInput, line); ) {
+			std::stringstream ss(line);
+
+			std::string type, value;
+			getline(ss, type, ' ');
+			getline(ss, value, '\n');
+			
+			if (type == "Ka") {
+				mat["k_ambient"]->setFloat(float3FromString(value));
+			} else if (type == "Kd") {
+				mat["k_diffuse"]->setFloat(float3FromString(value));
+			} else if (type == "Ks") {
+				mat["k_specular"]->setFloat(float3FromString(value));
+			} else if (type == "Ke") {
+				float ke = atoi(value.c_str());
+				if (ke > 0) {
+					mat["k_emission"]->setFloat(make_float3(ke, ke, ke));
+					mat["is_emissive"]->setInt(true);
+					m_emissive = true;
+				}
+			}
+		}
+	}
+
+	virtual void initGraphics(std::string obj_path, std::string mtl_path) {
+		m_objPath = obj_path;
+
+		GeometryGroup group = context->createGeometryGroup();
+
+		Material mat = context->createMaterial();
+		mat->setClosestHitProgram(0, closest_hit);
+		mat->setAnyHitProgram(1, any_hit);
+
+		ObjLoader loader(m_objPath.c_str(), context, group, mat);
+		loader.setIntersectProgram(mesh_intersect);
+		loader.setBboxProgram(mesh_bounds);
+		loader.load();
+
+		m_transform = context->createTransform();
+		m_transform->setChild(group);
 
 		mat["is_emissive"]->setInt(m_emissive);
 		mat["k_emission"]->setFloat(m_ke);
@@ -113,69 +122,22 @@ public:
 		mat["cutoff_color"]->setFloat( 0.2f, 0.2f, 0.2f );
 		mat["reflection_maxdepth"]->setInt( 5 );
 
-		mat["kd_map"]->setTextureSampler(loadTexture(m_context, 
-			res_path + m_diffuseMapFilename, 
+		mat["kd_map"]->setTextureSampler(loadTexture(context, 
+			obj_path + m_diffuseMapFilename, 
 			make_float3(1, 1, 1)));
-		mat["ks_map"]->setTextureSampler(loadTexture(m_context, 
-			res_path + m_specularMapFilename, 
+		mat["ks_map"]->setTextureSampler(loadTexture(context, 
+			obj_path + m_specularMapFilename, 
 			make_float3(1, 1, 1)));
-		mat["normal_map"]->setTextureSampler(loadTexture(m_context, 
-			res_path + m_normalMapFilename, 
+		mat["normal_map"]->setTextureSampler(loadTexture(context, 
+			obj_path + m_normalMapFilename, 
 			make_float3(1, 1, 1)));
 
 		mat["has_diffuse_map"]->setInt(!m_diffuseMapFilename.empty());
 		mat["has_normal_map"]->setInt(!m_normalMapFilename.empty());
 		mat["has_specular_map"]->setInt(!m_specularMapFilename.empty());
 
-		Program mesh_intersect = m_context->createProgramFromPTXFile(prog_path, "mesh_intersect");
-		Program mesh_bounds = m_context->createProgramFromPTXFile(prog_path, "mesh_bounds");
-
-		GeometryGroup group = m_context->createGeometryGroup();
-
-		ObjLoader loader(m_objPath.c_str(), m_context, group, mat);
-		loader.setIntersectProgram(mesh_intersect);
-		loader.setBboxProgram(mesh_bounds);
-		loader.load();
-
-		m_transform = m_context->createTransform();
-		/*
-		if (m_initialTransformMtx != NULL) {
-			m_transform->setMatrix(false, m_initialTransformMtx, NULL);
-		}
-		*/
-		m_transform->setChild(group);
-
-		// parseMtlFile(mat);
+		parseMtlFile(mat, mtl_path);
 	}
-
-	inline Transform getTransform() const { return m_transform; };
-
-	std::string m_renderObjFilename;
-	std::string m_diffuseMapFilename;
-	std::string m_normalMapFilename;
-	std::string m_specularMapFilename;
-
-	bool m_emissive;
-	float3 m_ke;
-	float3 m_ka;
-	float3 m_kd;
-	float3 m_ks;
-	float3 m_kr;
-	float m_ns;
-
-protected:
-	Context m_context;
-	Transform m_transform;
-	float* m_initialTransformMtx;
-
-	std::string m_objPath;
-};
-
-class EmissiveObject : public SceneObject {
-public:
-	EmissiveObject(Context c) : SceneObject(c) {
-		m_emissive = true;
-	};
 
 	RectangleLight createAreaLight() {
 		ConvexDecomposition::WavefrontObj wo;
@@ -199,16 +161,50 @@ public:
 
 		return light;
 	}
+
+	inline Transform getTransform() const { return m_transform; };
+	inline void setTransformMatrix(float m[]) { m_transform->setMatrix(false, m, NULL); };
+
+	std::string m_renderObjFilename;
+	std::string m_diffuseMapFilename;
+	std::string m_normalMapFilename;
+	std::string m_specularMapFilename;
+
+	bool m_emissive;
+	float3 m_ke;
+	float3 m_ka;
+	float3 m_kd;
+	float3 m_ks;
+	float3 m_kr;
+	float m_ns;
+
+	static Context context;
+	static Program mesh_intersect;
+	static Program mesh_bounds;
+	static Program closest_hit;
+	static Program any_hit;
+
+protected:
+	Transform m_transform;
+	float* m_initialTransformMtx;
+
+	std::string m_objPath;
 };
 
-class PhysicalObject : public SceneObject {
+Context SceneObject::context = NULL;
+Program SceneObject::closest_hit = NULL;
+Program SceneObject::any_hit= NULL;
+Program SceneObject::mesh_intersect = NULL;
+Program SceneObject::mesh_bounds = NULL;
+
+class Collider {
 public:
-	PhysicalObject(Context c) : SceneObject(c), m_mass(0) {
+	Collider(Context c) : m_mass(0) {
 	}
 
-	virtual void initPhysics(std::string prog_path) {
+	virtual void initPhysics(std::string obj_path) {
 		ConvexDecomposition::WavefrontObj wo;
-		wo.loadObj((prog_path + m_physicsObjFilename).c_str());
+		wo.loadObj((obj_path + m_physicsObjFilename).c_str());
 
 		btTriangleMesh* triMesh = new btTriangleMesh();
 
@@ -347,7 +343,6 @@ public:
 		t.setIdentity();
 		t.setOrigin(btVector3(pos.x, pos.y, pos.z));
 		m_rigidBody->setWorldTransform(t);
-
 	}
 
 	void step() {
@@ -373,30 +368,32 @@ public:
 			0.0f,								0.0f,								0.0f,								1.0f
 		};
 
-		m_transform->setMatrix(false, m, NULL);
+		parent->setTransformMatrix(m);
 	}
 
 	inline btRigidBody* getRigidBody() const { return m_rigidBody; }
 
 	std::string m_physicsObjFilename;
 protected:
+	SceneObject* parent;
 	btRigidBody* m_rigidBody;
-
 	btScalar m_mass;
 };
 
-class Ball : public PhysicalObject {
+class Ball : public Collider {
 public:
-	Ball(Context c) : PhysicalObject(c) {
+	Ball(Context c) : Collider(c) {
 		m_mass = 6;
 
+		/*
 		m_kr = make_float3(0.3, 0.3, 0.3);
 		m_ns = 10;
 
 		m_renderObjFilename = "/bowling_ball.obj";
+		*/
 	}
 
-	virtual void initPhysics(std::string prog_path) {
+	virtual void initPhysics(std::string obj_path) {
 		btCollisionShape* sphereShape = new btSphereShape(1);
 		btDefaultMotionState* state = new btDefaultMotionState(btTransform(btQuaternion(0, 0, 0, 1), btVector3(0, 0, 0)));
 
@@ -409,11 +406,12 @@ public:
 	}
 };
 
-class BowlingPin : public PhysicalObject {
+class BowlingPin : public Collider {
 public:
-	BowlingPin(Context c) : PhysicalObject(c) {
+	BowlingPin(Context c) : Collider(c) {
 		m_mass = 1;
 
+		/*
 		m_kr = make_float3(0, 0, 0);
 		m_ns = 10;
 
@@ -422,10 +420,11 @@ public:
 		m_diffuseMapFilename = "/pin-diffuse.ppm";
 		// m_normalMapFilename = "/brick_normal.ppm";
 		// m_specularMapFilename = "/brick_specular.ppm";
+		*/
 	}
 
 	/*
-	virtual void initPhysics(std::string prog_path) {
+	virtual void initPhysics(std::string obj_path) {
 		btCollisionShape* cylinderShape = new btCylinderShape(btVector3(0.44, 1.2, 1));
 		btDefaultMotionState* state = new btDefaultMotionState(btTransform(btQuaternion(0, 0, 0, 1), btVector3(0, 0, 0)));
 
@@ -442,11 +441,12 @@ public:
 private:
 };
 
-class GroundPlane : public PhysicalObject {
+class GroundPlane : public Collider {
 public:
-	GroundPlane(Context c) : PhysicalObject(c) {
+	GroundPlane(Context c) : Collider(c) {
 		m_mass = 0;
 
+		/*
 		m_ka = make_float3(0.2, 0.2, 0.2);
 		m_kr = make_float3(0.5, 0.5, 0.5);
 		m_ns = 5;
@@ -456,10 +456,11 @@ public:
 		m_diffuseMapFilename = "/wood_floor_diffuse.ppm";
 		// m_normalMapFilename = "/wood_floor_normal.ppm";
 		// m_specularMapFilename = "/wood_floor_specular.ppm";
+		*/
 	}
 
 	/*
-	virtual void initPhysics(std::string prog_path) {
+	virtual void initPhysics(std::string obj_path) {
 		btCollisionShape* boxShape = new btBoxShape(btVector3(100, 1, 5));
 		btDefaultMotionState* state = new btDefaultMotionState(
 			btTransform(btQuaternion(0, 0, 0, 1), btVector3(0, 0, 0)));

@@ -27,6 +27,8 @@
 
 #include "bowling_pin.h"
 
+#include "objFileProcessor.h"
+
 using namespace optix;
 
 inline float random1()
@@ -116,8 +118,11 @@ namespace GUIControl {
 
 	float ballVelocityZ = 0;
 
+	bool recording = false;
+
 	Fl_Button* startButton;
 	Fl_Button* pauseButton;
+	Fl_Button* recordButton;
 
 	Fl_Value_Slider* ballVelocityZSlider;
 	Fl_Value_Slider* cameraFocalLengthSlider;
@@ -181,6 +186,20 @@ namespace GUIControl {
 	void cameraFocalLengthChanged() {
 	}
 
+	void recordButtonPressed() {
+		if (!scene) {
+			return;
+		}
+
+		if (recording) {
+			recordButton->label("stop recording");
+			recording = false;
+		} else {
+			recordButton->label("record");
+			recording = true;
+		}
+	}
+
 	DWORD WINAPI showControlDialog(LPVOID lpParam) {
 		Fl_Window* window = new Fl_Window(300, 500);
 
@@ -209,6 +228,8 @@ namespace GUIControl {
 		cameraFocalLengthSlider->value(10);
 		cameraFocalLengthSlider->callback((Fl_Callback*) cameraFocalLengthChanged);
 
+		recordButton = new Fl_Button(0, 220, 300, 30, "record");
+
 		window->end();
 		window->show();
 
@@ -234,7 +255,7 @@ void BowlingScene::initScene( InitialCameraData& camera_data )
 		createMaterials( material );
 
 		initObjects();
-		resetObjects();
+		// resetObjects();
 
 		m_context->validate();
 		m_context->compile();
@@ -263,10 +284,12 @@ void BowlingScene::trace( const RayGenCameraData& camera_data )
 	for (int i = 0; i < sceneObjects.size(); i++) {
 		SceneObject* so = sceneObjects[i];
 
+		/*
 		PhysicalObject* po = dynamic_cast<PhysicalObject*>(so);
 		if (po) {
 			po->step();
 		}
+		*/
 	}
 
 	// mark acceleration structure dirty
@@ -380,6 +403,7 @@ void BowlingScene::createContext( InitialCameraData& camera_data )
 	m_context->setExceptionProgram(Pinhole, m_context->createProgramFromPTXFile( ptx_path, "exception" ) );
 	
 	// Setup lighting
+	/*
 	BasicLight lights[] = 
 	{ 
 		{ make_float3( 20.0f,	20.0f, 20.0f ), make_float3( 0.6f, 0.5f, 0.4f ), 3 },
@@ -393,6 +417,8 @@ void BowlingScene::createContext( InitialCameraData& camera_data )
 	light_buffer->unmap();
 
 	m_context["lights"]->set(light_buffer);
+	*/
+
 	m_context["ambient_light_color"]->setFloat( 0.4f, 0.4f, 0.4f );
 	
 	// Used by both exception programs
@@ -529,19 +555,32 @@ void BowlingScene::resetObjects() {
 }
 
 void BowlingScene::initObjects() {
-	std::vector<RectangleLight> areaLights;
-
-	std::string mesh_path = ptxpath( "tracer", "triangle_mesh_iterative.cu" );
+	std::string prog_path = ptxpath("tracer", "triangle_mesh_iterative.cu");
 	std::string mat_path = ptxpath("tracer", "phong.cu");
 
+	SceneObject::closest_hit = m_context->createProgramFromPTXFile(mat_path, "closest_hit_radiance");
+	SceneObject::any_hit = m_context->createProgramFromPTXFile(mat_path, "any_hit_shadow");
+
+	SceneObject::mesh_intersect = m_context->createProgramFromPTXFile(prog_path, "mesh_intersect");
+	SceneObject::mesh_bounds = m_context->createProgramFromPTXFile(prog_path, "mesh_bounds");
+
+	SceneObject::context  = m_context;
+
+	std::vector<RectangleLight> areaLights;
+
+	// process obj file
+	ObjFileProcessor ofp;
+	ofp.processObject(m_obj_path + "test-scene", m_obj_path + "objs/");
+
+	/*
 	GroundPlane* groundPlane = new GroundPlane(m_context);
-	groundPlane->initGraphics(mesh_path, mat_path, m_obj_path);
+	groundPlane->initGraphics(m_obj_path);
 	groundPlane->initPhysics(m_obj_path);
 	sceneObjects.push_back(groundPlane);
 
 	for (int i = 0; i < 1; i++) {
 		BowlingPin* pin = new BowlingPin(m_context);
-		pin->initGraphics(mesh_path, mat_path, m_obj_path);
+		pin->initGraphics(m_obj_path);
 		pin->initPhysics(m_obj_path);
 
 		sceneObjects.push_back(pin); 
@@ -549,46 +588,18 @@ void BowlingScene::initObjects() {
 	}
 
 	ball = new Ball(m_context);
-	ball->initGraphics(mesh_path, mat_path, m_obj_path);
+	ball->initGraphics(m_obj_path);
 	ball->initPhysics(m_obj_path);
 	sceneObjects.push_back(ball);
-
-	/*
-	PhysicalObject* rightDitch = new PhysicalObject(m_context);
-	rightDitch->m_renderObjFilename = "/simple.obj";
-	rightDitch->m_physicsObjFilename = "/simple.obj";
-	rightDitch->initGraphics(mesh_path, mat_path, m_obj_path);
-	rightDitch->initPhysics(m_obj_path);
-	sceneObjects.push_back(rightDitch);
 	*/
 
 	/*
-	SceneObject* banner = new SceneObject(m_context);
-	banner->m_renderObjFilename = "/banner.obj";
-	banner->m_diffuseMapFilename = "/banner_diffuse.ppm";
-	banner->initGraphics(mesh_path, mat_path, m_obj_path);
-
-	SceneObject* ditch = new SceneObject(m_context);
-	ditch->m_renderObjFilename = "/ditch.obj";
-	ditch->m_kd = make_float3(0.05, 0.05, 0.05);
-	ditch->m_ks = make_float3(0.5, 0.5, 0.5);
-	ditch->m_kr = make_float3(0.2, 0.2, 0.2);
-	ditch->initGraphics(mesh_path, mat_path, m_obj_path);
-
-	SceneObject* ditch_bar = new SceneObject(m_context);
-	ditch_bar->m_renderObjFilename = "/ditch_bar.obj";
-	ditch_bar->initGraphics(mesh_path, mat_path, m_obj_path);
-
-	SceneObject* side_floor = new SceneObject(m_context);
-	side_floor->m_renderObjFilename = "/side_floor.obj";
-	side_floor->initGraphics(mesh_path, mat_path, m_obj_path);
+	SceneObject* sphere = new SceneObject;
+	sphere->initGraphics(m_obj_path + "cubes.obj");
+	sceneObjects.push_back(sphere);
 	*/
 
-	EmissiveObject* sample_light = new EmissiveObject(m_context);
-	sample_light->m_renderObjFilename = "/sample_light.obj";
-	sample_light->initGraphics(mesh_path, mat_path, m_obj_path);
-	areaLights.push_back(sample_light->createAreaLight());
-	sceneObjects.push_back(sample_light);
+
 
 	btDbvtBroadphase* broadPhase = new btDbvtBroadphase();
 
@@ -598,18 +609,32 @@ void BowlingScene::initObjects() {
 	btSequentialImpulseConstraintSolver* solver = new btSequentialImpulseConstraintSolver;
 
 	world = new btDiscreteDynamicsWorld(dispatcher, broadPhase, solver, collisionConfiguration);
+	/*
 	for (int i = 0; i < sceneObjects.size(); i++) {
 		PhysicalObject* po = dynamic_cast<PhysicalObject*>(sceneObjects[i]);
 		if (po) {
 			world->addRigidBody(po->getRigidBody());
 		}
 	}
+	*/
+
+	/*
+	SceneObject* sample_light = new SceneObject;
+	sample_light->m_emissive = true;
+	sample_light->initGraphics(m_obj_path + "sample_light.obj", m_obj_path + "sample_light.mtl");
+	areaLights.push_back(sample_light->createAreaLight());
+	ofp.sceneObjects.push_back(sample_light);
+	*/
 
 	g = m_context->createGroup();
-	g->setChildCount(sceneObjects.size());
+	g->setChildCount(ofp.sceneObjects.size());
 
-	for (int i = 0; i < sceneObjects.size(); i++) {
-		g->setChild<Transform>(i, sceneObjects[i]->getTransform());
+	for (int i = 0; i < ofp.sceneObjects.size(); i++) {
+		SceneObject* so = ofp.sceneObjects[i];
+		if (so->m_emissive) {
+			areaLights.push_back(so->createAreaLight());
+		}
+		g->setChild<Transform>(i, so->getTransform());
 	}
 
 	g->setAcceleration(m_context->createAcceleration("Bvh", "Bvh"));
@@ -617,8 +642,8 @@ void BowlingScene::initObjects() {
 	m_context["top_object"]->set(g);
 	m_context["top_shadower"]->set(g);
 
-	RectangleLight* areaLightArray = &areaLights[0];
 	// add area lights to the scene
+	RectangleLight* areaLightArray = &areaLights[0];
 	Buffer areaLightBuffer = m_context->createBuffer(RT_BUFFER_INPUT);
 	areaLightBuffer->setFormat(RT_FORMAT_USER);
 	areaLightBuffer->setElementSize(sizeof(RectangleLight));

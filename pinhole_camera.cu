@@ -4,6 +4,8 @@
 #include "helpers.h"
 #include "random.h"
 
+// #define OFFLINE
+
 using namespace optix;
 
 struct PerRayData_radiance
@@ -57,7 +59,8 @@ RT_PROGRAM void pinhole_camera()
 	float3 result = make_float3(0, 0, 0);
 	float2 d = make_float2(launch_index) / make_float2(launch_dim) * 2.f - 1.f;
 
-	const int numDofSamples = 50;
+#ifdef OFFLINE
+	const int numDofSamples = 100;
 	for (int i = 0; i < numDofSamples; i++) {
 		PerRayData_radiance prd;
 		prd.importance = 1.f / numDofSamples;
@@ -72,7 +75,7 @@ RT_PROGRAM void pinhole_camera()
 
 		// float3 ray_origin = eye + make_float3(0, 0, 0.1 * i);
 		float3 ray_origin = eye + V * rand_x + U * rand_y;
-		float3 ray_direction = normalize(d.x * U + d.y * V + W * 2);
+		float3 ray_direction = normalize(d.x * U + d.y * V + W);
 
 		optix::Ray ray = optix::make_Ray(ray_origin, ray_direction, radiance_ray_type, scene_epsilon, RT_DEFAULT_MAX);
 
@@ -80,6 +83,19 @@ RT_PROGRAM void pinhole_camera()
 
 		result += prd.result / numDofSamples;
 	}
+#else
+	PerRayData_radiance prd;
+	prd.importance = 1.f;
+	prd.depth = 0;
+	
+	float3 ray_direction = normalize(d.x * U + d.y * V + W);
+
+	optix::Ray ray = optix::make_Ray(eye, ray_direction, radiance_ray_type, scene_epsilon, RT_DEFAULT_MAX);
+
+	rtTrace(top_object, ray, prd);
+
+	result += prd.result;
+#endif
 
 #ifdef TIME_VIEW
 	clock_t t1 = clock(); 
