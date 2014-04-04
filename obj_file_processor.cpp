@@ -10,7 +10,7 @@ std::vector<SceneObject*> ObjFileProcessor::processObject(std::string filename, 
 		std::cout << "Processing object: " << it->first << std::endl;
 
 		SceneObject* so = new SceneObject();
-		so->initGraphics(targetDir + it->first, targetDir + it->second);
+		so->initGraphics(targetDir + it->first, targetDir + it->second, targetDir);
 		sceneObjects.push_back(so);
 
 		if (it->first.find("Cube")) {

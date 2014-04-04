@@ -32,8 +32,7 @@ using namespace optix;
 
 class Scene : public SampleScene {
 public:
-	Scene( const std::string& obj_path, int camera_type ) 
-		: SampleScene(), m_obj_path( obj_path ), m_frame_number( 0u ), m_camera_type( camera_type ) {}
+	Scene( const std::string& obj_path, int camera_type );
 
 	// From SampleScene
 	void initScene( InitialCameraData& camera_data );
@@ -56,7 +55,6 @@ public:
 	GUIControl* control;
 
 private:
-
 	void createContext( SampleScene::InitialCameraData& camera_data );
 	void createMaterials(Material material[] );
 
@@ -85,6 +83,8 @@ private:
 	static unsigned int HEIGHT;
 
 	Group g;
+
+	int currSampleInFrame;
 
 };
 

@@ -34,7 +34,7 @@ SceneObject::SceneObject() {
 	m_ka = make_float3(0.2, 0.2, 0.2);
 	m_kd = make_float3(0.5, 0.5, 0.5);
 	m_ks = make_float3(0.3, 0.3, 0.3);
-	m_kr = make_float3(0, 0, 0);
+	m_kr = make_float3(0.5, 0.5, 0.5);
 	m_ns = 10;
 	
 	m_emissive = false;
@@ -46,7 +46,7 @@ void SceneObject::attachCollider(Collider* c) {
 	c->setParent(this);
 }
 
-void SceneObject::parseMtlFile(Material mat, std::string mtl_path) {
+void SceneObject::parseMtlFile(Material mat, std::string mtl_path, std::string tex_dir) {
 	std::ifstream mtlInput(mtl_path);
 
 	std::vector<std::string> lines;
@@ -72,12 +72,22 @@ void SceneObject::parseMtlFile(Material mat, std::string mtl_path) {
 				m_emissive = true;
 			}
 		} else if (type == "map_Kd") {
-
+			mat["kd_map"]->setTextureSampler(loadTexture(
+				context, tex_dir + value, make_float3(1, 1, 1)));
+			mat["has_diffuse_map"]->setInt(true);
 		}
 	}
 }
 
-void SceneObject::initGraphics(std::string obj_path, std::string mtl_path) {
+void SceneObject::initGraphics(std::string obj_path, std::string mtl_path, std::string tex_dir) {
+	int tmp, pos = 0;
+    int lastIndex;
+    while ((tmp = obj_path.find('/', pos)) != std::string::npos) {
+        pos = tmp + 1;
+        lastIndex = tmp;
+    }
+	std::string objName = obj_path.substr(lastIndex + 1, obj_path.length() - 1);
+
 	m_objPath = obj_path;
 
 	GeometryGroup group = context->createGeometryGroup();
@@ -94,6 +104,16 @@ void SceneObject::initGraphics(std::string obj_path, std::string mtl_path) {
 	m_transform = context->createTransform();
 	m_transform->setChild(group);
 
+	if (obj_path.find("Wall") != std::string::npos) {
+		m_diffuseMapFilename = "brick_COLOR.ppm";
+		m_normalMapFilename = "brick_NRM.ppm";
+		m_ks = make_float3(0.1);
+	} else if (obj_path.find("Light") != std::string::npos) {
+		m_ke = make_float3(1);
+		m_emissive = true;
+	} else if (obj_path.find("Floor") != std::string::npos) {
+	}
+
 	mat["is_emissive"]->setInt(m_emissive);
 	mat["k_emission"]->setFloat(m_ke);
 	mat["k_ambient"]->setFloat(m_ka);
@@ -107,20 +127,17 @@ void SceneObject::initGraphics(std::string obj_path, std::string mtl_path) {
 	mat["reflection_maxdepth"]->setInt( 5 );
 
 	mat["kd_map"]->setTextureSampler(loadTexture(context, 
-		obj_path + m_diffuseMapFilename, 
-		make_float3(1, 1, 1)));
+		tex_dir + m_diffuseMapFilename, make_float3(1, 1, 1)));
 	mat["ks_map"]->setTextureSampler(loadTexture(context, 
-		obj_path + m_specularMapFilename, 
-		make_float3(1, 1, 1)));
+		tex_dir + m_specularMapFilename, make_float3(1, 1, 1)));
 	mat["normal_map"]->setTextureSampler(loadTexture(context, 
-		obj_path + m_normalMapFilename, 
-		make_float3(1, 1, 1)));
+		tex_dir + m_normalMapFilename, make_float3(1, 1, 1)));
 
 	mat["has_diffuse_map"]->setInt(!m_diffuseMapFilename.empty());
 	mat["has_normal_map"]->setInt(!m_normalMapFilename.empty());
 	mat["has_specular_map"]->setInt(!m_specularMapFilename.empty());
 
-	parseMtlFile(mat, mtl_path);
+	// parseMtlFile(mat, mtl_path, tex_dir);
 }
 
 RectangleLight SceneObject::createAreaLight() {

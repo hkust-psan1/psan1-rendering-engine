@@ -44,8 +44,10 @@ rtDeclareVariable(int, ns, , );
 
 rtDeclareVariable(float3, texcoord, attribute texcoord, ); 
 rtDeclareVariable(float3, cutoff_color, , );
-rtDeclareVariable(int, reflection_maxdepth, , );
+rtDeclareVariable(int, reflection_maxdepth, , ) = 5;
+rtDeclareVariable(int, refraction_maxdepth, , ) = 5;
 rtDeclareVariable(float, importance_cutoff, , );
+rtDeclareVariable(float, IOR, , ) = 1.3;
 
 rtDeclareVariable(int, has_diffuse_map, , );
 rtDeclareVariable(int, has_normal_map, , );
@@ -246,6 +248,35 @@ RT_PROGRAM void closest_hit_radiance()
 	}
 
 	result += kd * reflection * kr * refl_color;
+
+	/* refraction */
+	float3 refr_color = make_float3(0, 0, 0);
+
+	if (depth < min(refraction_maxdepth, max_depth)) {
+		float3 transmission_direction;
+		if (refract(transmission_direction, ray_dir, normal, IOR)) {
+			// check whether it is internal or external refraction
+			/*
+			float cos_theta = dot(ray_dir, normal);
+			if (cos_theta < 0) {
+				cos_theta = - cos_theta;
+			} else {
+				cos_theta = dot(transmission_direction, normal);
+			}
+			*/
+
+			// refr_color = TraceRay(fhp, transmission_direction, depth + 1, prd_radiance.importance * 0.4);
+
+			/*
+			float importance = prd_radiance.importance * (1 - reflection) * optix::luminance(kr * beer_attenuation);
+			if (importance > importance_cutoff) {
+				// refr_color = TraceRay(fhp, transmission_direction, depth + 1, importance);
+			}
+			*/
+		}
+	}
+
+	result += kd * refr_color;
 	
 	prd_radiance.result = result;
 }

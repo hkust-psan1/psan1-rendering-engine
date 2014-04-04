@@ -1,14 +1,25 @@
 #include "gui_control.h"
 #include "scene.h"
 
+#define OFFLINE
+#define NUM_SAMPLES_PER_FRAME 20
+
 unsigned int Scene::WIDTH = 512u;
 unsigned int Scene::HEIGHT = 384u;
+
+Scene::Scene( const std::string& obj_path, int camera_type ) 
+	: SampleScene(), m_obj_path( obj_path ), m_frame_number( 0u ), 
+	m_camera_type( camera_type ) {
+
+	m_jitter_grid_num = 4;
+	m_jitter_base_x = 0;
+	m_jitter_base_y = 0;
+}
 
 void Scene::initScene( InitialCameraData& camera_data ) {
 	try {
 		optix::Material material[3];
 		createContext( camera_data );
-		createMaterials( material );
 
 		initObjects();
 		// resetObjects();
@@ -26,8 +37,8 @@ Buffer Scene::getOutputBuffer() {
 	return m_context["output_buffer"]->getBuffer();
 }
 
-
 void Scene::trace( const RayGenCameraData& camera_data ) {
+	/*
 	if (GUIControl::onAnimation) { // when animation is on, step simulation
 		world->stepSimulation(1 / 100.f, 10);
 	}
@@ -44,6 +55,7 @@ void Scene::trace( const RayGenCameraData& camera_data ) {
 
 	// mark acceleration structure dirty
 	g->getAcceleration()->markDirty();
+	*/
 
 	/* Optix rendering settings */
 	if (m_camera_changed) {
@@ -56,6 +68,14 @@ void Scene::trace( const RayGenCameraData& camera_data ) {
 	m_context["V"]->setFloat( camera_data.V );
 	m_context["W"]->setFloat( camera_data.W );
 	m_context["frame_number"]->setUint( m_frame_number++ );
+	
+	m_context["jitter_on"]->setInt(true);
+	m_context["jitter_grid_size"]->setFloat(1.f / m_jitter_grid_num);
+
+	float2 jitter_base = make_float2(
+		-0.5 + m_jitter_base_x / (float) m_jitter_grid_num,
+		-0.5 + m_jitter_base_y / (float) m_jitter_grid_num);
+	m_context["jitter_base"]->setFloat(jitter_base);
 
 	float focal_distance = length(camera_data.W) + distance_offset;
 	focal_distance = fmaxf(focal_distance, m_context["scene_epsilon"]->getFloat());
@@ -69,6 +89,17 @@ void Scene::trace( const RayGenCameraData& camera_data ) {
 	m_context->launch(getEntryPoint(),
 		static_cast<unsigned int>(buffer_width),
 		static_cast<unsigned int>(buffer_height));
+
+	m_jitter_base_x++;
+
+	if (m_jitter_base_x == m_jitter_grid_num) { // row completed
+		m_jitter_base_x = 0;
+		m_jitter_base_y++;
+	}
+
+	if (m_jitter_base_y == m_jitter_grid_num) { // frame completed
+		m_jitter_base_y = 0;
+	}
 }
 
 void Scene::doResize( unsigned int width, unsigned int height ) {
@@ -230,47 +261,6 @@ void Scene::genRndSeeds( unsigned int width, unsigned int height ) {
 	m_rnd_seeds->unmap();
 }
 
-void Scene::createMaterials(Material material[]) {
-	material[0] = m_context->createMaterial();
-	material[1] = m_context->createMaterial();
-	material[2] = m_context->createMaterial();
-
-	makeMaterialPrograms(material[0], "phong.cu", "closest_hit_radiance", "any_hit_shadow");
-	
-	material[0]["ka" ]->setFloat( 0.2f, 0.2f, 0.2f );
-	material[0]["ks" ]->setFloat( 0.5f, 0.5f, 0.5f );
-	material[0]["kr" ]->setFloat( 0.8f, 0.8f, 0.8f );
-	material[0]["ns" ]->setInt( 32 );
-	material[0]["importance_cutoff"	]->setFloat( 0.01f );
-	material[0]["cutoff_color"			 ]->setFloat( 0.2f, 0.2f, 0.2f );
-	material[0]["reflection_maxdepth"]->setInt( 5 );
-	material[0]["kd_map"]->setTextureSampler( loadTexture( m_context, m_obj_path +	+ "wood_floor.ppm", make_float3(1, 1, 1)) );
-
-	// Checkerboard to aid positioning, not used in final setup.
-	makeMaterialPrograms(material[1], "phong.cu", "closest_hit_radiance", "any_hit_shadow");
-	
-	material[1]["ka" ]->setFloat( 0.6f, 0.6f, 0.6f );
-	material[1]["ks" ]->setFloat( 0.5f, 0.5f, 0.5f );
-	material[1]["kr" ]->setFloat( 0.0f, 0.0f, 0.0f );
-	material[1]["ns" ]->setInt( 64 );
-	material[1]["importance_cutoff"	]->setFloat( 0.01f );
-	material[1]["cutoff_color"			 ]->setFloat( 0.2f, 0.2f, 0.2f );
-	material[1]["reflection_maxdepth"]->setInt( 5 );
-	material[1]["kd_map"]->setTextureSampler( loadTexture( m_context, m_obj_path + "pin-diffuse.ppm", make_float3(1, 1, 1)) );
-
-	makeMaterialPrograms(material[2], "phong.cu", "closest_hit_radiance", "any_hit_shadow");
-	
-	material[2]["ka" ]->setFloat( 0.2f, 0.2f, 0.2f );
-	material[2]["ks" ]->setFloat( 0.5f, 0.5f, 0.5f );
-	material[2]["kr" ]->setFloat( 0.7f, 0.7f, 0.7f );
-	material[2]["ns" ]->setInt( 64 );
-	material[2]["importance_cutoff"	]->setFloat( 0.01f );
-	material[2]["cutoff_color"			 ]->setFloat( 0.2f, 0.2f, 0.2f );
-	material[2]["reflection_maxdepth"]->setInt( 5 );
-	material[2]["kd_map"]->setTextureSampler( loadTexture( m_context, m_obj_path + "cloth.ppm", make_float3(1, 1, 1)) );
-
-}
-
 void Scene::resetObjects() {
 	const float pinRadius = 0.44; // from the obj file
 	const float pinDistance = 0.44 * 12 / (4.75 / 2); // 12 inches distance with 4.75 inches diameter
@@ -322,7 +312,7 @@ void Scene::initObjects() {
 
 	// process obj file
 	ObjFileProcessor ofp;
-	sceneObjects = ofp.processObject(m_obj_path + "test-scene", m_obj_path + "objs/");
+	sceneObjects = ofp.processObject(m_obj_path + "interior", m_obj_path + "objs/");
 
 	/*
 	GroundPlane* groundPlane = new GroundPlane(m_context);

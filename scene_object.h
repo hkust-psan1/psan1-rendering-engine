@@ -15,17 +15,20 @@ class SceneObject {
 public:
 	SceneObject();
 
-	void attachCollider(Collider* c);
+	/**
+	 * parse a .mtl file and get modify the Material created in initGraphics
+	 * tex_dir refers to the directory where the textures are located
+	 */
+	void parseMtlFile(Material mat, std::string mtl_path, std::string tex_dir);
 
-	void parseMtlFile(Material mat, std::string mtl_path);
-
-	virtual void initGraphics(std::string obj_path, std::string mtl_path);
+	virtual void initGraphics(std::string obj_path, std::string mtl_path, std::string tex_dir);
 
 	RectangleLight createAreaLight();
 
 	inline Transform getTransform() const { return m_transform; };
 	inline void setTransformMatrix(float m[]) { m_transform->setMatrix(false, m, NULL); };
 
+	void attachCollider(Collider* c);
 	inline Collider* getCollider() const { return m_collider; };
 
 	std::string m_renderObjFilename;

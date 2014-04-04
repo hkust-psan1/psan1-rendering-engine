@@ -15,6 +15,15 @@ struct PerRayData_radiance
 	int depth;
 };
 
+// whether to used jittered rendering
+rtDeclareVariable(int, jitter_on, ,) = false;
+
+// dimension of the jittered sampling grid
+rtDeclareVariable(float, jitter_grid_size, ,) = 1.f;
+
+// base of the jitter index
+rtDeclareVariable(float2, jitter_base, ,);
+
 rtDeclareVariable(float3, eye, , ) = { 1.0f, 0.0f, 0.0f };
 rtDeclareVariable(float3, U, , ) = { 0.0f, 1.0f, 0.0f };
 rtDeclareVariable(float3, V, , ) = { 0.0f, 0.0f, 1.0f };
@@ -87,14 +96,55 @@ RT_PROGRAM void pinhole_camera()
 	PerRayData_radiance prd;
 	prd.importance = 1.f;
 	prd.depth = 0;
+
+	/*
+	int supersampling = 4;
+	float sampling_step = 1.0 / supersampling;
+	*/
 	
-	float3 ray_direction = normalize(d.x * U + d.y * V + W);
+	if (jitter_on) {
+		float x_index = launch_index.x + jitter_base.x + jitter_grid_size * rnd(seed);
+		float y_index = launch_index.y + jitter_base.y + jitter_grid_size * rnd(seed);
 
-	optix::Ray ray = optix::make_Ray(eye, ray_direction, radiance_ray_type, scene_epsilon, RT_DEFAULT_MAX);
+		float2 jittered_d = make_float2(x_index, y_index) / make_float2(launch_dim) * 2.f - 1.f;
 
-	rtTrace(top_object, ray, prd);
+		float3 ray_direction = normalize(jittered_d.x * U + jittered_d.y * V + W);
 
-	result += prd.result;
+		optix::Ray ray = optix::make_Ray(eye, ray_direction, 
+			radiance_ray_type, scene_epsilon, RT_DEFAULT_MAX);
+
+		rtTrace(top_object, ray, prd);
+
+		result = prd.result;
+
+		/*
+		for (int i = 0; i < supersampling; i++) {
+			for (int j = 0; j < supersampling; j++) {
+				float base_x_index = launch_index.x - 0.5 + sampling_step * i;
+				float base_y_index = launch_index.y - 0.5 + sampling_step * i;
+
+				float x_index = base_x_index + sampling_step * rnd(seed);
+				float y_index = base_y_index + sampling_step * rnd(seed);
+
+				float2 jittered_d = make_float2(x_index, y_index) / make_float2(launch_dim) * 2.f - 1.f;
+				float3 ray_direction = normalize(jittered_d.x * U + jittered_d.y * V + W);
+
+				optix::Ray ray = optix::make_Ray(eye, ray_direction, 
+					radiance_ray_type, scene_epsilon, RT_DEFAULT_MAX);
+
+				rtTrace(top_object, ray, prd);
+
+				result += prd.result / (supersampling * supersampling);
+			}
+		}
+		*/
+	} else {
+		float3 ray_direction = normalize(d.x * U + d.y * V + W);
+		optix::Ray ray = optix::make_Ray(eye, ray_direction, radiance_ray_type, scene_epsilon, RT_DEFAULT_MAX);
+		rtTrace(top_object, ray, prd);
+
+		result += prd.result;
+	}
 #endif
 
 #ifdef TIME_VIEW
