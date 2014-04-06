@@ -1,5 +1,5 @@
 # Blender MTL File: 'interior.blend'
-# Material Count: 2
+# Material Count: 5
 
 newmtl Material.001
 Ns 96.078431
@@ -18,6 +18,51 @@ illum 2
 map_Kd brick.jpg
 
 newmtl Material.002
+Ns 96.078431
+Ke 0.000000
+Ka 0.000000 0.000000 0.000000
+Kd 0.640000 0.640000 0.640000
+Ks 0.500000 0.500000 0.500000
+Alpha 1.000000
+IOR 1.000000
+RefractGloss 1.000000
+ReflectFactor 0.000000
+ReflectGloss 1.000000
+Ni 1.000000
+d 1.000000
+illum 2
+
+newmtl Material.004
+Ns 96.078431
+Ke 0.000000
+Ka 0.000000 0.000000 0.000000
+Kd 0.640000 0.640000 0.640000
+Ks 0.500000 0.500000 0.500000
+Alpha 1.000000
+IOR 1.000000
+RefractGloss 1.000000
+ReflectFactor 0.000000
+ReflectGloss 1.000000
+Ni 1.000000
+d 1.000000
+illum 2
+
+newmtl Material.005
+Ns 96.078431
+Ke 0.000000
+Ka 0.000000 0.000000 0.000000
+Kd 0.640000 0.640000 0.640000
+Ks 0.500000 0.500000 0.500000
+Alpha 1.000000
+IOR 1.000000
+RefractGloss 1.000000
+ReflectFactor 0.000000
+ReflectGloss 1.000000
+Ni 1.000000
+d 1.000000
+illum 2
+
+newmtl Material.008
 Ns 96.078431
 Ke 0.000000
 Ka 0.000000 0.000000 0.000000

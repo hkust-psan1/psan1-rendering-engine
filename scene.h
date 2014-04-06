@@ -52,8 +52,6 @@ public:
 	// Ball* ball;
 	std::string	 m_obj_path;
 
-	GUIControl* control;
-
 private:
 	void createContext( SampleScene::InitialCameraData& camera_data );
 	void createMaterials(Material material[] );
@@ -85,7 +83,6 @@ private:
 	Group g;
 
 	int currSampleInFrame;
-
 };
 
 #endif

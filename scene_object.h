@@ -41,8 +41,10 @@ public:
 	float3 m_ka;
 	float3 m_kd;
 	float3 m_ks;
-	float3 m_kr;
+	float3 m_krefl;
+	float3 m_krefr;
 	float m_ns;
+	float m_glossiness;
 
 	static Context context;
 	static Program mesh_intersect;

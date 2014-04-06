@@ -13,9 +13,16 @@ std::vector<SceneObject*> ObjFileProcessor::processObject(std::string filename, 
 		so->initGraphics(targetDir + it->first, targetDir + it->second, targetDir);
 		sceneObjects.push_back(so);
 
-		if (it->first.find("Cube")) {
+		// used for the kitchen scene
+		if (it->first.find("Falling") != std::string::npos) {
 			Collider* c = new Collider;
 			c->setMass(1);
+			c->initPhysics(targetDir + it->first);
+			c->setInitialPosition(btVector3(0, 10, 0));
+			so->attachCollider(c);
+		} else if (it->first.find("Floor") != std::string::npos) {
+			Collider* c = new Collider;
+			c->setMass(0);
 			c->initPhysics(targetDir + it->first);
 			so->attachCollider(c);
 		}

@@ -118,6 +118,9 @@ RT_PROGRAM void pinhole_camera()
 		result = prd.result;
 
 		/*
+		int supersampling = 4;
+		float sampling_step = 0.25;
+
 		for (int i = 0; i < supersampling; i++) {
 			for (int j = 0; j < supersampling; j++) {
 				float base_x_index = launch_index.x - 0.5 + sampling_step * i;

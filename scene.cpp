@@ -11,6 +11,7 @@ Scene::Scene( const std::string& obj_path, int camera_type )
 	: SampleScene(), m_obj_path( obj_path ), m_frame_number( 0u ), 
 	m_camera_type( camera_type ) {
 
+	m_jitter_on = false;
 	m_jitter_grid_num = 4;
 	m_jitter_base_x = 0;
 	m_jitter_base_y = 0;
@@ -38,24 +39,26 @@ Buffer Scene::getOutputBuffer() {
 }
 
 void Scene::trace( const RayGenCameraData& camera_data ) {
-	/*
-	if (GUIControl::onAnimation) { // when animation is on, step simulation
-		world->stepSimulation(1 / 100.f, 10);
-	}
+	if (m_new_frame || !m_jitter_on) { // step simulation if new frame, or jitter is off
+		m_new_frame = false;
 
-	// re-position objects according to simulation result
-	for (int i = 0; i < sceneObjects.size(); i++) {
-		SceneObject* so = sceneObjects[i];
-		Collider* c = so->getCollider();
-
-		if (c) {
-			c->step();
+		if (GUIControl::onAnimation) { // when animation is on, step simulation
+			world->stepSimulation(1 / 30.f, 10);
 		}
-	}
 
-	// mark acceleration structure dirty
-	g->getAcceleration()->markDirty();
-	*/
+		// re-position objects according to simulation result
+		for (int i = 0; i < sceneObjects.size(); i++) {
+			SceneObject* so = sceneObjects[i];
+			Collider* c = so->getCollider();
+
+			if (c) {
+				c->step();
+			}
+		}
+
+		// mark acceleration structure dirty
+		g->getAcceleration()->markDirty();
+	}
 
 	/* Optix rendering settings */
 	if (m_camera_changed) {
@@ -69,7 +72,7 @@ void Scene::trace( const RayGenCameraData& camera_data ) {
 	m_context["W"]->setFloat( camera_data.W );
 	m_context["frame_number"]->setUint( m_frame_number++ );
 	
-	m_context["jitter_on"]->setInt(true);
+	// m_context["jitter_on"]->setInt(true);
 	m_context["jitter_grid_size"]->setFloat(1.f / m_jitter_grid_num);
 
 	float2 jitter_base = make_float2(
@@ -99,6 +102,7 @@ void Scene::trace( const RayGenCameraData& camera_data ) {
 
 	if (m_jitter_base_y == m_jitter_grid_num) { // frame completed
 		m_jitter_base_y = 0;
+		m_new_frame = true;
 	}
 }
 
@@ -109,7 +113,6 @@ void Scene::doResize( unsigned int width, unsigned int height ) {
 	m_context["num_samples_buffer"]->getBuffer()->setSize( width, height );
 	m_context["rnd_seeds"]->getBuffer()->setSize( width, height );
 }
-
 
 // Return whether we processed the key or not
 bool Scene::keyPressed(unsigned char key, int x, int y) {
@@ -349,6 +352,21 @@ void Scene::initObjects() {
 	btSequentialImpulseConstraintSolver* solver = new btSequentialImpulseConstraintSolver;
 
 	world = new btDiscreteDynamicsWorld(dispatcher, broadPhase, solver, collisionConfiguration);
+
+	// add a ground plane
+	/*
+	btCollisionShape* groundShape = new btBoxShape(btVector3(10, 1, 10));
+	btVector3 localInertia(0, 0, 0);
+	btTransform groundTransform;
+	groundTransform.setIdentity();
+	groundTransform.setOrigin(btVector3(0, 0, 0));
+	btDefaultMotionState* groundMotionState = new btDefaultMotionState(groundTransform);
+	btRigidBody::btRigidBodyConstructionInfo info(0, groundMotionState, groundShape, localInertia);
+	btRigidBody* groundBody = new btRigidBody(info);
+
+	world->addRigidBody(groundBody);
+	*/
+
 	/*
 	for (int i = 0; i < sceneObjects.size(); i++) {
 		PhysicalObject* po = dynamic_cast<PhysicalObject*>(sceneObjects[i]);

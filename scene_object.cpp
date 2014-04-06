@@ -30,12 +30,14 @@ float3 float3FromString(std::string s) {
 SceneObject::SceneObject() {
 	m_initialTransformMtx = NULL;
 
-	m_ke = make_float3(0, 0, 0);
+	m_ke = make_float3(0);
 	m_ka = make_float3(0.2, 0.2, 0.2);
 	m_kd = make_float3(0.5, 0.5, 0.5);
-	m_ks = make_float3(0.3, 0.3, 0.3);
-	m_kr = make_float3(0.5, 0.5, 0.5);
+	m_ks = make_float3(0);
+	m_krefl = make_float3(0);
+	m_krefr = make_float3(0);
 	m_ns = 10;
+	m_glossiness = 0;
 	
 	m_emissive = false;
 	m_collider = NULL;
@@ -104,23 +106,42 @@ void SceneObject::initGraphics(std::string obj_path, std::string mtl_path, std::
 	m_transform = context->createTransform();
 	m_transform->setChild(group);
 
+	// used for the kitchen scene
 	if (obj_path.find("Wall") != std::string::npos) {
 		m_diffuseMapFilename = "brick_COLOR.ppm";
-		m_normalMapFilename = "brick_NRM.ppm";
-		m_ks = make_float3(0.1);
+		m_ks = make_float3(0);
 	} else if (obj_path.find("Light") != std::string::npos) {
 		m_ke = make_float3(1);
 		m_emissive = true;
 	} else if (obj_path.find("Floor") != std::string::npos) {
+		m_kd = make_float3(0.2, 0.2, 0.2);
+		m_ks = make_float3(0);
+		m_krefl = make_float3(0.5);
+		m_glossiness = 0.3;
+	} else if (obj_path.find("Table") != std::string::npos) {
+		m_diffuseMapFilename = "table_COLOR.ppm";
+		m_ks = make_float3(0.1);
+	} else if (obj_path.find("Cabinet") != std::string::npos) {
+		m_diffuseMapFilename = "cabinet.ppm";
+	} else if (obj_path.find("Marble-Top") != std::string::npos) {
+		m_diffuseMapFilename = "marble-table_COLOR.ppm";
+	} else if (obj_path.find("Board") != std::string::npos) {
+		m_diffuseMapFilename = "wooden_board.ppm";
+	} else if (obj_path.find("Falling") != std::string::npos) {
+		m_krefr = make_float3(0.8);
 	}
+
+	// used for the bowling scene
 
 	mat["is_emissive"]->setInt(m_emissive);
 	mat["k_emission"]->setFloat(m_ke);
 	mat["k_ambient"]->setFloat(m_ka);
 	mat["k_diffuse"]->setFloat(m_kd);
 	mat["k_specular"]->setFloat(m_ks);
-	mat["k_reflective"]->setFloat(m_kr);
+	mat["k_reflective"]->setFloat(m_krefl);
+	mat["k_refractive"]->setFloat(m_krefr);
 	mat["ns"]->setInt(m_ns);
+	mat["glossiness"]->setFloat(m_glossiness);
 
 	mat["importance_cutoff"]->setFloat( 0.01f );
 	mat["cutoff_color"]->setFloat( 0.2f, 0.2f, 0.2f );

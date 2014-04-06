@@ -7,7 +7,8 @@
 using namespace optix;
 
 // use offline rendering
-// #define OFFLINE
+// #define SOFT_SHADOW
+// #define GLOSSY
 
 // rtDeclareVariable(unsigned int, thread_index, attribute thread_index, );
 rtDeclareVariable(uint2, thread_index, rtLaunchIndex, );
@@ -40,7 +41,9 @@ rtDeclareVariable(float3, k_ambient, , );
 rtDeclareVariable(float3, k_diffuse, , );
 rtDeclareVariable(float3, k_specular, , );
 rtDeclareVariable(float3, k_reflective, , );
+rtDeclareVariable(float3, k_refractive, , );
 rtDeclareVariable(int, ns, , );
+rtDeclareVariable(float, glossiness, , );
 
 rtDeclareVariable(float3, texcoord, attribute texcoord, ); 
 rtDeclareVariable(float3, cutoff_color, , );
@@ -77,6 +80,18 @@ rtDeclareVariable(PerRayData_shadow, prd_shadow, rtPayload, );
 
 #define PI 3.1415926
 
+static __device__ __inline__ bool floatVecZero(float3 v) {
+	return v.x < scene_epsilon && v.y < scene_epsilon && v.z < scene_epsilon;
+}
+
+/*	calculate fresnel reflection */
+static __device__ __inline__ float3 schlick(float nDi, const float3& rgb) {
+	float r = fresnel_schlick(nDi, 5, rgb.x, 1);
+	float g = fresnel_schlick(nDi, 5, rgb.y, 1);
+	float b = fresnel_schlick(nDi, 5, rgb.z, 1);
+	return make_float3(r, g, b);
+}
+
 /*  randomize a vector based on normal distribution, used for 
     normal vectors in glossy reflection and refraction */
 static __device__ float3 randomizeVector(const float3& v, float amount, unsigned int& seed) {
@@ -84,8 +99,8 @@ static __device__ float3 randomizeVector(const float3& v, float amount, unsigned
 	float rand1 = rnd(seed), rand2 = rnd(seed);
 
 	// X and Y are normally distributed random numbers
-	float X = sqrt(- 2 * log(rand1)) * cos(2 * PI * rand2) * amount;
-	float Y = sqrt(- 2 * log(rand1)) * sin(2 * PI * rand2) * amount;
+	float X = sqrt(- 2 * log(rand1)) * cos(2 * PI * rand2) * amount / 5;
+	float Y = sqrt(- 2 * log(rand1)) * sin(2 * PI * rand2) * amount / 5;
 
 	// make a vector not parallel to v to find v's tangent and bitangent
 	float3 u = v;
@@ -153,8 +168,6 @@ RT_PROGRAM void closest_hit_radiance()
 		ks = k_specular;
 	}
 
-	float3 kr = k_reflective;
-
 	// Here tangent, bitangent and normal are attribute variables set in the ray-generation program,
 	// transform them to the work space using the normal transformation matrix
 	const float3 T = normalize(rtTransformNormal(RT_OBJECT_TO_WORLD, tangent)); // tangent	
@@ -185,14 +198,14 @@ RT_PROGRAM void closest_hit_radiance()
 
 		// according to whether offline rendering is activated, use different number of samples to
 		// achieve soft or hard shadow
-#ifdef OFFLINE
-		const int numShadowSamples = 10;
+#ifdef SOFT_SHADOW
+		const int numShadowSamples = 30;
 #else
 		const int numShadowSamples = 1;
 #endif
 
 		for (int j = 0; j < numShadowSamples; j++) {
-#ifdef OFFLINE
+#ifdef SOFT_SHADOW
 			float2 random_pair = make_float2(rnd(seed), rnd(seed));
 			// randomly sample points in the area light source
 			float3 sampledPos = light.pos + random_pair.x * light.r1 + random_pair.y * light.r2;
@@ -220,63 +233,57 @@ RT_PROGRAM void closest_hit_radiance()
 		}
 	}
 
-	// beer attenuation for reflection
-	const float beer_attenuation = 1.0f;
+	/* reflection */
+	if (!floatVecZero(k_reflective) && depth < min(reflection_maxdepth, max_depth)) {
+		float3 refl_color = make_float3(0, 0, 0);
 
-	float3 refl_color = make_float3(0, 0, 0);
-	float reflection = 1.0f;
-
-	if (depth < min(reflection_maxdepth, max_depth)) {
 		// reflection direction
-		const float3 r = reflect(ray_dir, normal);
-		float importance = prd_radiance.importance * reflection * optix::luminance(kr * beer_attenuation);
+		const float3 refl = reflect(ray_dir, normal);
+		const float3 fresnel = schlick(- dot(normal, ray_dir), k_reflective);
+		float importance = prd_radiance.importance * optix::luminance(fresnel);
 
 		// number of samples to take for each reflection
-#ifdef OFFLINE
-		const int numGlossySample = 10;
+#ifdef GLOSSY
+		const int numGlossySample = 30;
 		
 		if (importance > importance_cutoff) {
 			for (int i = 0; i < numGlossySample; i++) {
-				float3 randomizedRefl = randomizeVector(r, 0.1, seed);
-				refl_color += TraceRay(fhp, randomizedRefl, depth + 1, importance / float(numGlossySample));
+				float3 randomizedRefl = randomizeVector(refl, glossiness, seed);
+				refl_color += TraceRay(fhp, randomizedRefl, depth + 1, importance / float(numGlossySample))
+					/ numGlossySample;
 			}
 		}
-		refl_color /= numGlossySample;
 #else
-		refl_color = TraceRay(fhp, r, depth + 1, importance);
+		refl_color = TraceRay(fhp, refl, depth + 1, importance);
 #endif
+		result += k_reflective * refl_color;
 	}
 
-	result += kd * reflection * kr * refl_color;
-
 	/* refraction */
-	float3 refr_color = make_float3(0, 0, 0);
+	if (!floatVecZero(k_refractive) && depth < min(refraction_maxdepth, max_depth)) {
+		float3 refr_color = make_float3(0, 0, 0);
 
-	if (depth < min(refraction_maxdepth, max_depth)) {
 		float3 transmission_direction;
 		if (refract(transmission_direction, ray_dir, normal, IOR)) {
 			// check whether it is internal or external refraction
-			/*
 			float cos_theta = dot(ray_dir, normal);
-			if (cos_theta < 0) {
+			if (cos_theta < 0) { // external
 				cos_theta = - cos_theta;
-			} else {
+			} else { // internal
 				cos_theta = dot(transmission_direction, normal);
 			}
-			*/
 
-			// refr_color = TraceRay(fhp, transmission_direction, depth + 1, prd_radiance.importance * 0.4);
+			// refr_color = TraceRay(fhp, transmission_direction, depth + 1, prd_radiance.importance) / 3.0;
 
 			/*
-			float importance = prd_radiance.importance * (1 - reflection) * optix::luminance(kr * beer_attenuation);
+			float importance = prd_radiance.importance * (1 - reflection) * optix::luminance(k_reflective * beer_attenuation);
 			if (importance > importance_cutoff) {
 				// refr_color = TraceRay(fhp, transmission_direction, depth + 1, importance);
 			}
 			*/
 		}
+		result += refr_color;
 	}
-
-	result += kd * refr_color;
 	
 	prd_radiance.result = result;
 }
