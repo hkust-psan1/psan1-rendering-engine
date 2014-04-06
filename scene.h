@@ -52,6 +52,8 @@ public:
 	// Ball* ball;
 	std::string	 m_obj_path;
 
+	int m_dof_sample_num;
+
 private:
 	void createContext( SampleScene::InitialCameraData& camera_data );
 	void createMaterials(Material material[] );

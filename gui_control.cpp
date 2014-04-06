@@ -16,6 +16,7 @@ bool GUIControl::aaOn = false;
 Fl_Button* GUIControl::startButton;
 Fl_Button* GUIControl::pauseButton;
 Fl_Button* GUIControl::recordButton;
+Fl_Button* GUIControl::snapShotButton;
 
 Fl_Value_Slider* GUIControl::ballVelocityZSlider;
 Fl_Value_Slider* GUIControl::cameraFocalScaleSlider;
@@ -99,6 +100,20 @@ void GUIControl::recordButtonPressed() {
 	}
 }
 
+void GUIControl::snapShotButtonPressed() {
+	if (!scene) {
+		return;
+	}
+
+	snapShotButton->deactivate();
+
+	scene->m_taking_snapshot = true;
+
+	scene->m_dof_sample_num = 0;
+	scene->m_jitter_base_x = 0;
+	scene->m_jitter_base_y = 0;
+}
+
 void GUIControl::dofLightButtonPressed() {
 	dofOn = !dofOn;
 	if (dofOn) {
@@ -152,16 +167,19 @@ void GUIControl::showControlDialog() {
 	recordButton = new Fl_Button(0, 220, 300, 30, "record");
 	recordButton->callback((Fl_Callback*) recordButtonPressed);
 
-	dofLightButton = new Fl_Light_Button(0, 260, 300, 30, "depth of field");
+	snapShotButton = new Fl_Button(0, 260, 300, 30, "take snapshot");
+	snapShotButton->callback((Fl_Callback*) snapShotButtonPressed);
+
+	dofLightButton = new Fl_Light_Button(0, 300, 300, 30, "depth of field");
 	dofLightButton->callback((Fl_Callback*) dofLightButtonPressed);
 
-	softShadowLightButton = new Fl_Light_Button(0, 300, 300, 30, "soft shadow");
+	softShadowLightButton = new Fl_Light_Button(0, 340, 300, 30, "soft shadow");
 	softShadowLightButton->callback((Fl_Callback*) softShadowLightButtonPressed);
 
-	glossyLightButton = new Fl_Light_Button(0, 340, 300, 30, "glossiness");
+	glossyLightButton = new Fl_Light_Button(0, 380, 300, 30, "glossiness");
 	glossyLightButton->callback((Fl_Callback*) glossyLightButtonPressed);
 
-	aaLightButton = new Fl_Light_Button(0, 380, 300, 30, "anti-aliasing");
+	aaLightButton = new Fl_Light_Button(0, 420, 300, 30, "anti-aliasing");
 	aaLightButton->callback((Fl_Callback*) aaLightButtonPressed);
 
 	window->end();

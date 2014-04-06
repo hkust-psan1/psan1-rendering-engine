@@ -2,9 +2,6 @@
 #include "scene.h"
 #include "utils.h"
 
-#define OFFLINE
-#define NUM_SAMPLES_PER_FRAME 20
-
 unsigned int Scene::WIDTH = 512u;
 unsigned int Scene::HEIGHT = 384u;
 
@@ -12,10 +9,13 @@ Scene::Scene( const std::string& obj_path, int camera_type )
 	: SampleScene(), m_obj_path( obj_path ), m_frame_number( 0u ), 
 	m_camera_type( camera_type ) {
 
-	m_jitter_on = false;
 	m_jitter_grid_num = 4;
 	m_jitter_base_x = 0;
 	m_jitter_base_y = 0;
+
+	m_dof_sample_num = 0;
+
+	m_taking_snapshot = false;
 }
 
 void Scene::initScene( InitialCameraData& camera_data ) {
@@ -39,9 +39,10 @@ Buffer Scene::getOutputBuffer() {
 	return m_context["output_buffer"]->getBuffer();
 }
 
-void Scene::trace( const RayGenCameraData& camera_data ) {
-	if (m_new_frame || !m_jitter_on) { // step simulation if new frame, or jitter is off
+void Scene::trace(const RayGenCameraData& camera_data) {
+	if (m_new_frame) {
 		m_new_frame = false;
+
 
 		if (GUIControl::onAnimation) { // when animation is on, step simulation
 			world->stepSimulation(1 / 30.f, 10);
@@ -67,15 +68,17 @@ void Scene::trace( const RayGenCameraData& camera_data ) {
 		m_camera_changed = false;
 	}
 
-	m_context["eye"]->setFloat( camera_data.eye );
-	m_context["U"]->setFloat( camera_data.U );
-	m_context["V"]->setFloat( camera_data.V );
-	m_context["W"]->setFloat( camera_data.W );
-	m_context["frame_number"]->setUint( m_frame_number++ );
+	m_context["eye"]->setFloat(camera_data.eye);
+	m_context["U"]->setFloat(camera_data.U);
+	m_context["V"]->setFloat(camera_data.V);
+	m_context["W"]->setFloat(camera_data.W);
+	m_context["frame_number"]->setUint(m_frame_number++);
 
 	m_context["soft_shadow_on"]->setInt(GUIControl::softShadowOn);
-	
-	// m_context["jitter_on"]->setInt(true);
+	m_context["aa_on"]->setInt(GUIControl::aaOn);
+	m_context["dof_on"]->setInt(GUIControl::dofOn);
+	m_context["glossy_on"]->setInt(GUIControl::glossyOn);
+
 	m_context["jitter_grid_size"]->setFloat(1.f / m_jitter_grid_num);
 
 	float2 jitter_base = make_float2(
@@ -83,11 +86,6 @@ void Scene::trace( const RayGenCameraData& camera_data ) {
 		-0.5 + m_jitter_base_y / (float) m_jitter_grid_num);
 	m_context["jitter_base"]->setFloat(jitter_base);
 
-	/*
-	float focal_distance = length(camera_data.W) + distance_offset;
-	focal_distance = fmaxf(focal_distance, m_context["scene_epsilon"]->getFloat());
-	float focal_scale = focal_distance / length(camera_data.W);
-	*/
 	m_context["focal_scale"]->setFloat(GUIControl::cameraFocalScale);
 
 	Buffer buffer = m_context["output_buffer"]->getBuffer();
@@ -98,16 +96,44 @@ void Scene::trace( const RayGenCameraData& camera_data ) {
 		static_cast<unsigned int>(buffer_width),
 		static_cast<unsigned int>(buffer_height));
 
-	m_jitter_base_x++;
+	m_dof_sample_num++;
 
-	if (m_jitter_base_x == m_jitter_grid_num) { // row completed
-		m_jitter_base_x = 0;
-		m_jitter_base_y++;
+	bool dof_completed = true;
+	if (GUIControl::dofOn) {
+		if (m_dof_sample_num == 30) {
+			m_dof_sample_num = 0;
+
+			if (GUIControl::aaOn) {
+				m_jitter_base_x++;
+			}
+		} else {
+			dof_completed = false;
+		}
+	} else {
+		if (GUIControl::aaOn) {
+			m_jitter_base_x++;
+		}
 	}
 
-	if (m_jitter_base_y == m_jitter_grid_num) { // frame completed
-		m_jitter_base_y = 0;
-		m_new_frame = true;
+	bool aa_completed = true;
+	if (GUIControl::aaOn) {
+		if (m_jitter_base_x == m_jitter_grid_num) { // row completed
+			m_jitter_base_x = 0;
+			m_jitter_base_y++;
+		}
+
+		if (m_jitter_base_y == m_jitter_grid_num) { // frame completed
+			m_jitter_base_y = 0;
+		} else { // supersampling not completed
+			aa_completed = false;
+		}
+	}
+
+	m_new_frame = dof_completed && aa_completed;
+
+	if (m_new_frame && m_taking_snapshot) {
+		m_taking_snapshot = false;
+		GUIControl::snapShotButton->activate();
 	}
 }
 

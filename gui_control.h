@@ -19,6 +19,7 @@ public:
 	static void ballVelocityZSliderValueChanged();
 	static void cameraFocalScaleChanged();
 	static void recordButtonPressed();
+	static void snapShotButtonPressed();
 	static void showControlDialog();
 	static void dofLightButtonPressed();
 	static void softShadowLightButtonPressed();
@@ -45,6 +46,7 @@ public:
 	static Fl_Button* startButton;
 	static Fl_Button* pauseButton;
 	static Fl_Button* recordButton;
+	static Fl_Button* snapShotButton;
 
 	static Fl_Value_Slider* ballVelocityZSlider;
 	static Fl_Value_Slider* cameraFocalScaleSlider;

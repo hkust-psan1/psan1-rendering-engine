@@ -7,8 +7,6 @@
 using namespace optix;
 
 // use offline rendering
-#define SOFT_SHADOW
-// #define GLOSSY
 
 // rtDeclareVariable(unsigned int, thread_index, attribute thread_index, );
 rtDeclareVariable(uint2, thread_index, rtLaunchIndex, );
@@ -61,6 +59,7 @@ rtTextureSampler<float4, 2> ks_map;
 rtTextureSampler<float4, 2> normal_map;
 
 rtDeclareVariable(int, soft_shadow_on, ,) = false;
+rtDeclareVariable(int, glossy_on, ,) = false;
 
 // rtBuffer<BasicLight> lights;
 rtBuffer<RectangleLight> area_lights;
@@ -240,19 +239,19 @@ RT_PROGRAM void closest_hit_radiance()
 		float importance = prd_radiance.importance * optix::luminance(fresnel);
 
 		// number of samples to take for each reflection
-#ifdef GLOSSY
-		const int numGlossySample = 30;
-		
-		if (importance > importance_cutoff) {
-			for (int i = 0; i < numGlossySample; i++) {
-				float3 randomizedRefl = randomizeVector(refl, glossiness, seed);
-				refl_color += TraceRay(fhp, randomizedRefl, depth + 1, importance / float(numGlossySample))
-					/ numGlossySample;
+		if (glossy_on) {
+			const int numGlossySample = 30;
+			
+			if (importance > importance_cutoff) {
+				for (int i = 0; i < numGlossySample; i++) {
+					float3 randomizedRefl = randomizeVector(refl, glossiness, seed);
+					refl_color += TraceRay(fhp, randomizedRefl, depth + 1, importance / float(numGlossySample))
+						/ numGlossySample;
+				}
 			}
+		} else {
+			refl_color = TraceRay(fhp, refl, depth + 1, importance);
 		}
-#else
-		refl_color = TraceRay(fhp, refl, depth + 1, importance);
-#endif
 		result += k_reflective * refl_color;
 	}
 
