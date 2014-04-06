@@ -1,5 +1,6 @@
 #include "gui_control.h"
 #include "scene.h"
+#include "utils.h"
 
 #define OFFLINE
 #define NUM_SAMPLES_PER_FRAME 20
@@ -80,10 +81,12 @@ void Scene::trace( const RayGenCameraData& camera_data ) {
 		-0.5 + m_jitter_base_y / (float) m_jitter_grid_num);
 	m_context["jitter_base"]->setFloat(jitter_base);
 
+	/*
 	float focal_distance = length(camera_data.W) + distance_offset;
 	focal_distance = fmaxf(focal_distance, m_context["scene_epsilon"]->getFloat());
 	float focal_scale = focal_distance / length(camera_data.W);
-	m_context["focal_scale"]->setFloat( focal_scale );
+	*/
+	m_context["focal_scale"]->setFloat(GUIControl::cameraFocalScale);
 
 	Buffer buffer = m_context["output_buffer"]->getBuffer();
 	RTsize buffer_width, buffer_height;

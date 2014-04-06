@@ -6,12 +6,13 @@ Scene* GUIControl::scene = NULL;
 bool GUIControl::onAnimation = false;
 bool GUIControl::initialStep = true;
 float GUIControl::ballVelocityZ = 0;
+float GUIControl::cameraFocalScale = 0.5;
 
 Fl_Button* GUIControl::startButton;
 Fl_Button* GUIControl::pauseButton;
 Fl_Button* GUIControl::recordButton;
 Fl_Value_Slider* GUIControl::ballVelocityZSlider;
-Fl_Value_Slider* GUIControl::cameraFocalLengthSlider;
+Fl_Value_Slider* GUIControl::cameraFocalScaleSlider;
 
 /*
 GUIControl::GUIControl(Scene* s) : scene(s) {
@@ -79,7 +80,8 @@ void GUIControl::ballVelocityZSliderValueChanged() {
 	ballVelocityZ = ballVelocityZSlider->value();
 }
 
-void GUIControl::cameraFocalLengthChanged() {
+void GUIControl::cameraFocalScaleChanged() {
+	cameraFocalScale = cameraFocalScaleSlider->value();
 }
 
 void GUIControl::recordButtonPressed() {
@@ -118,11 +120,11 @@ void GUIControl::showControlDialog() {
 
 	Fl_Box* cameraFocalLengthLabel = new Fl_Box(0, 150, 300, 20, "camera focal length");
 
-	cameraFocalLengthSlider = new Fl_Value_Slider(0, 180, 300, 30);
-	cameraFocalLengthSlider->type(FL_HOR_SLIDER);
-	cameraFocalLengthSlider->bounds(0, 20);
-	cameraFocalLengthSlider->value(10);
-	cameraFocalLengthSlider->callback((Fl_Callback*) cameraFocalLengthChanged);
+	cameraFocalScaleSlider = new Fl_Value_Slider(0, 180, 300, 30);
+	cameraFocalScaleSlider->type(FL_HOR_SLIDER);
+	cameraFocalScaleSlider->bounds(0.2, 5);
+	cameraFocalScaleSlider->value(0.5);
+	cameraFocalScaleSlider->callback((Fl_Callback*) cameraFocalScaleChanged);
 
 	recordButton = new Fl_Button(0, 220, 300, 30, "record");
 	recordButton->callback((Fl_Callback*) recordButtonPressed);

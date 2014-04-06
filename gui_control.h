@@ -16,7 +16,7 @@ public:
 	static void startButtonPressed();
 	static void pauseButtonPressed();
 	static void ballVelocityZSliderValueChanged();
-	static void cameraFocalLengthChanged();
+	static void cameraFocalScaleChanged();
 	static void recordButtonPressed();
 	static void showControlDialog();
 
@@ -30,12 +30,14 @@ public:
 
 	static float ballVelocityZ;
 
+	static float cameraFocalScale;
+
 	static Fl_Button* startButton;
 	static Fl_Button* pauseButton;
 	static Fl_Button* recordButton;
 
 	static Fl_Value_Slider* ballVelocityZSlider;
-	static Fl_Value_Slider* cameraFocalLengthSlider;
+	static Fl_Value_Slider* cameraFocalScaleSlider;
 
 };
 

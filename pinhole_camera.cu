@@ -4,7 +4,7 @@
 #include "helpers.h"
 #include "random.h"
 
-// #define OFFLINE
+#define DOF
 
 using namespace optix;
 
@@ -40,7 +40,7 @@ rtDeclareVariable(uint2, launch_dim, rtLaunchDim, );
 rtDeclareVariable(float, time_view_scale, , ) = 1e-6f;
 
 rtDeclareVariable(float, aperture_radius, , );
-rtDeclareVariable(float, focal_scale, , );
+rtDeclareVariable(float, focal_scale, , ) = 0.8;
 
 
 // #define TIME_VIEW
@@ -68,23 +68,32 @@ RT_PROGRAM void pinhole_camera()
 	float3 result = make_float3(0, 0, 0);
 	float2 d = make_float2(launch_index) / make_float2(launch_dim) * 2.f - 1.f;
 
-#ifdef OFFLINE
-	const int numDofSamples = 100;
+#ifdef DOF
+	const int numDofSamples = 50;
 	for (int i = 0; i < numDofSamples; i++) {
 		PerRayData_radiance prd;
 		prd.importance = 1.f / numDofSamples;
 		prd.depth = 0;
 
 		// randomly sample eye positions on a disk
+		float3 ray_origin = eye;
+		float3 ray_direction = d.x * U + d.y * V + W;
+		float3 ray_target = ray_origin + focal_scale * ray_direction;
+
+		float2 sample = square_to_disk(make_float2(rnd(seed), rnd(seed)));
+		ray_origin += 0.1 * (sample.x * normalize(U) + sample.y * normalize(V));
+		ray_direction = normalize(ray_target - ray_origin);
+
+		/*
 		float rand_dist = rnd(seed) * 0.01;
 		float rand_angle = rnd(seed) * 2 * PI;
 
 		float rand_x = rand_dist * cos(rand_angle);
 		float rand_y = rand_dist * sin(rand_angle);
 
-		// float3 ray_origin = eye + make_float3(0, 0, 0.1 * i);
-		float3 ray_origin = eye + V * rand_x + U * rand_y;
-		float3 ray_direction = normalize(d.x * U + d.y * V + W);
+		// float3 ray_origin = eye + V * rand_x + U * rand_y;
+		float3 ray_origin = d.x * normalize(U) + d.y * normalize(V) + eye;
+		*/
 
 		optix::Ray ray = optix::make_Ray(ray_origin, ray_direction, radiance_ray_type, scene_epsilon, RT_DEFAULT_MAX);
 

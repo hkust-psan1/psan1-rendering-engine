@@ -1,4 +1,3 @@
-#include "random.h"
 #include <optixu/optixpp_namespace.h>
 #include <optixu/optixu_math_namespace.h>
 #include <optixu/optixu_matrix_namespace.h>
@@ -17,4 +16,8 @@ inline float3 random3() {
 
 inline float4 random4() {
 	return make_float4( random1(), random1(), random1(), random1() );
+}
+
+inline void printFloat3(float3 v) {
+	printf("%.3f\t%.3f\t%.3f\n", v.x, v.y, v.z);
 }
