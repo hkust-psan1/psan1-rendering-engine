@@ -4,7 +4,7 @@
 #include "helpers.h"
 #include "random.h"
 
-#define DOF
+// #define DOF
 
 using namespace optix;
 

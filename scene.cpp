@@ -72,6 +72,8 @@ void Scene::trace( const RayGenCameraData& camera_data ) {
 	m_context["V"]->setFloat( camera_data.V );
 	m_context["W"]->setFloat( camera_data.W );
 	m_context["frame_number"]->setUint( m_frame_number++ );
+
+	m_context["soft_shadow_on"]->setInt(GUIControl::softShadowOn);
 	
 	// m_context["jitter_on"]->setInt(true);
 	m_context["jitter_grid_size"]->setFloat(1.f / m_jitter_grid_num);

@@ -5,6 +5,7 @@
 #include <FL\Fl_Window.H>
 #include <FL\Fl_Box.H>
 #include <FL\Fl_Button.H>
+#include <FL\Fl_Light_Button.H>
 #include <FL\Fl_Value_Slider.H>
 
 class Scene;
@@ -19,6 +20,10 @@ public:
 	static void cameraFocalScaleChanged();
 	static void recordButtonPressed();
 	static void showControlDialog();
+	static void dofLightButtonPressed();
+	static void softShadowLightButtonPressed();
+	static void glossyLightButtonPressed();
+	static void aaLightButtonPressed();
 
 	static Scene* scene;
 
@@ -32,12 +37,22 @@ public:
 
 	static float cameraFocalScale;
 
+	static bool dofOn;
+	static bool softShadowOn;
+	static bool glossyOn;
+	static bool aaOn;
+
 	static Fl_Button* startButton;
 	static Fl_Button* pauseButton;
 	static Fl_Button* recordButton;
 
 	static Fl_Value_Slider* ballVelocityZSlider;
 	static Fl_Value_Slider* cameraFocalScaleSlider;
+
+	static Fl_Light_Button* dofLightButton;
+	static Fl_Light_Button* softShadowLightButton;
+	static Fl_Light_Button* glossyLightButton;
+	static Fl_Light_Button* aaLightButton;
 
 };
 

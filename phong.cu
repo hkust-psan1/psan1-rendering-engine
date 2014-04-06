@@ -7,7 +7,7 @@
 using namespace optix;
 
 // use offline rendering
-// #define SOFT_SHADOW
+#define SOFT_SHADOW
 // #define GLOSSY
 
 // rtDeclareVariable(unsigned int, thread_index, attribute thread_index, );
@@ -59,6 +59,8 @@ rtDeclareVariable(int, has_specular_map, , );
 rtTextureSampler<float4, 2> kd_map;
 rtTextureSampler<float4, 2> ks_map;
 rtTextureSampler<float4, 2> normal_map;
+
+rtDeclareVariable(int, soft_shadow_on, ,) = false;
 
 // rtBuffer<BasicLight> lights;
 rtBuffer<RectangleLight> area_lights;
@@ -198,20 +200,15 @@ RT_PROGRAM void closest_hit_radiance()
 
 		// according to whether offline rendering is activated, use different number of samples to
 		// achieve soft or hard shadow
-#ifdef SOFT_SHADOW
-		const int numShadowSamples = 30;
-#else
-		const int numShadowSamples = 1;
-#endif
+		const int numShadowSamples = soft_shadow_on ? 30 : 1;
 
 		for (int j = 0; j < numShadowSamples; j++) {
-#ifdef SOFT_SHADOW
-			float2 random_pair = make_float2(rnd(seed), rnd(seed));
-			// randomly sample points in the area light source
-			float3 sampledPos = light.pos + random_pair.x * light.r1 + random_pair.y * light.r2;
-#else
-			float3 sampledPos = light.pos;
-#endif
+			float3 sampledPos;
+			if (soft_shadow_on) {
+				sampledPos = light.pos + rnd(seed) * light.r1 + rnd(seed) * light.r2;
+			} else {
+				sampledPos = light.pos + 0.5 * light.r1 + 0.5 * light.r2;
+			}
 
 			float Ldist = length(sampledPos - fhp);
 

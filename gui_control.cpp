@@ -8,21 +8,22 @@ bool GUIControl::initialStep = true;
 float GUIControl::ballVelocityZ = 0;
 float GUIControl::cameraFocalScale = 0.5;
 
+bool GUIControl::dofOn = false;
+bool GUIControl::softShadowOn = false;
+bool GUIControl::glossyOn = false;
+bool GUIControl::aaOn = false;
+
 Fl_Button* GUIControl::startButton;
 Fl_Button* GUIControl::pauseButton;
 Fl_Button* GUIControl::recordButton;
+
 Fl_Value_Slider* GUIControl::ballVelocityZSlider;
 Fl_Value_Slider* GUIControl::cameraFocalScaleSlider;
 
-/*
-GUIControl::GUIControl(Scene* s) : scene(s) {
-	onAnimation = false;
-	initialStep = true;
-	ballVelocityZ = 0;
-
-	s->control = this;
-}
-*/
+Fl_Light_Button* GUIControl::dofLightButton;
+Fl_Light_Button* GUIControl::softShadowLightButton;
+Fl_Light_Button* GUIControl::glossyLightButton;
+Fl_Light_Button* GUIControl::aaLightButton;
 
 void GUIControl::startButtonPressed() {
 	if (!scene) {
@@ -98,6 +99,27 @@ void GUIControl::recordButtonPressed() {
 	}
 }
 
+void GUIControl::dofLightButtonPressed() {
+	dofOn = !dofOn;
+	if (dofOn) {
+		cameraFocalScaleSlider->activate();
+	} else {
+		cameraFocalScaleSlider->deactivate();
+	}
+}
+
+void GUIControl::softShadowLightButtonPressed() {
+	softShadowOn = !softShadowOn;
+}
+
+void GUIControl::glossyLightButtonPressed() {
+	glossyOn = !glossyOn;
+}
+
+void GUIControl::aaLightButtonPressed() {
+	aaOn = !aaOn;
+}
+
 void GUIControl::showControlDialog() {
 	Fl_Window* window = new Fl_Window(300, 500);
 
@@ -125,9 +147,22 @@ void GUIControl::showControlDialog() {
 	cameraFocalScaleSlider->bounds(0.2, 5);
 	cameraFocalScaleSlider->value(0.5);
 	cameraFocalScaleSlider->callback((Fl_Callback*) cameraFocalScaleChanged);
+	cameraFocalScaleSlider->deactivate();
 
 	recordButton = new Fl_Button(0, 220, 300, 30, "record");
 	recordButton->callback((Fl_Callback*) recordButtonPressed);
+
+	dofLightButton = new Fl_Light_Button(0, 260, 300, 30, "depth of field");
+	dofLightButton->callback((Fl_Callback*) dofLightButtonPressed);
+
+	softShadowLightButton = new Fl_Light_Button(0, 300, 300, 30, "soft shadow");
+	softShadowLightButton->callback((Fl_Callback*) softShadowLightButtonPressed);
+
+	glossyLightButton = new Fl_Light_Button(0, 340, 300, 30, "glossiness");
+	glossyLightButton->callback((Fl_Callback*) glossyLightButtonPressed);
+
+	aaLightButton = new Fl_Light_Button(0, 380, 300, 30, "anti-aliasing");
+	aaLightButton->callback((Fl_Callback*) aaLightButtonPressed);
 
 	window->end();
 	window->show();
