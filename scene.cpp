@@ -43,9 +43,8 @@ void Scene::trace(const RayGenCameraData& camera_data) {
 	if (m_new_frame) {
 		m_new_frame = false;
 
-
 		if (GUIControl::onAnimation) { // when animation is on, step simulation
-			world->stepSimulation(1 / 30.f, 10);
+			world->stepSimulation(1 / 100.f, 10);
 		}
 
 		// re-position objects according to simulation result
@@ -78,6 +77,7 @@ void Scene::trace(const RayGenCameraData& camera_data) {
 	m_context["aa_on"]->setInt(GUIControl::aaOn);
 	m_context["dof_on"]->setInt(GUIControl::dofOn);
 	m_context["glossy_on"]->setInt(GUIControl::glossyOn);
+	m_context["gi_on"]->setInt(GUIControl::giOn);
 
 	m_context["jitter_grid_size"]->setFloat(1.f / m_jitter_grid_num);
 
@@ -145,37 +145,6 @@ void Scene::doResize( unsigned int width, unsigned int height ) {
 	m_context["rnd_seeds"]->getBuffer()->setSize( width, height );
 }
 
-// Return whether we processed the key or not
-bool Scene::keyPressed(unsigned char key, int x, int y) {
-	float r = m_context["aperture_radius"]->getFloat();
-	switch (key)
-	{
-	case 'z':		
-		r += 0.01f;
-		m_context["aperture_radius"]->setFloat(r);
-		std::cout << "Aperture radius: " << r << std::endl;
-			m_camera_changed = true;
-		return true;
-	case 'x':		
-		r -= 0.01f;
-		m_context["aperture_radius"]->setFloat(r);
-		std::cout << "Aperture radius: " << r << std::endl;
-			m_camera_changed = true;
-		return true;
-	case ',':		
-		distance_offset -= 0.1f;
-		std::cout << "Distance offset" << distance_offset << std::endl;
-			m_camera_changed = true;
-		return true;
-	case '.':		
-		distance_offset += 0.1f;
-		std::cout << "Distance offset" << distance_offset << std::endl;
-			m_camera_changed = true;
-		return true;
-	}
-	return false;
-}
-
 void Scene::createContext( InitialCameraData& camera_data ) {
 	// Context
 	m_context->setEntryPointCount( 3 );
@@ -191,7 +160,6 @@ void Scene::createContext( InitialCameraData& camera_data ) {
 	m_context["focal_scale"]->setFloat( 0.0f ); // Value is set in trace()
 	m_context["aperture_radius"]->setFloat(0.1f);
 	m_context["frame_number"]->setUint(1);
-	m_context["jitter"]->setFloat(0.0f, 0.0f, 0.0f, 0.0f);
 	distance_offset = -1.5f;
 
 	// Output buffer.
@@ -229,7 +197,7 @@ void Scene::createContext( InitialCameraData& camera_data ) {
 	m_context["lights"]->set(light_buffer);
 	*/
 
-	m_context["ambient_light_color"]->setFloat( 0.4f, 0.4f, 0.4f );
+	m_context["ambient_light_color"]->setFloat( 0.1f, 0.1f, 0.1f );
 	
 	// Used by both exception programs
 	m_context["bad_color"]->setFloat( 0.0f, 1.0f, 1.0f );
@@ -336,6 +304,7 @@ void Scene::initObjects() {
 
 	SceneObject::closest_hit = m_context->createProgramFromPTXFile(mat_path, "closest_hit_radiance");
 	SceneObject::any_hit = m_context->createProgramFromPTXFile(mat_path, "any_hit_shadow");
+	SceneObject::closest_hit_gi = m_context->createProgramFromPTXFile(mat_path, "closest_hit_radiance_gi");
 
 	SceneObject::mesh_intersect = m_context->createProgramFromPTXFile(prog_path, "mesh_intersect");
 	SceneObject::mesh_bounds = m_context->createProgramFromPTXFile(prog_path, "mesh_bounds");
@@ -415,14 +384,6 @@ void Scene::initObjects() {
 		}
 	}
 
-	/*
-	SceneObject* sample_light = new SceneObject;
-	sample_light->m_emissive = true;
-	sample_light->initGraphics(m_obj_path + "sample_light.obj", m_obj_path + "sample_light.mtl");
-	areaLights.push_back(sample_light->createAreaLight());
-	ofp.sceneObjects.push_back(sample_light);
-	*/
-
 	g = m_context->createGroup();
 	g->setChildCount(sceneObjects.size());
 
@@ -440,14 +401,16 @@ void Scene::initObjects() {
 	m_context["top_shadower"]->set(g);
 
 	// add area lights to the scene
-	RectangleLight* areaLightArray = &areaLights[0];
-	Buffer areaLightBuffer = m_context->createBuffer(RT_BUFFER_INPUT);
-	areaLightBuffer->setFormat(RT_FORMAT_USER);
-	areaLightBuffer->setElementSize(sizeof(RectangleLight));
-	areaLightBuffer->setSize(areaLights.size());
-	memcpy(areaLightBuffer->map(), areaLightArray, sizeof(RectangleLight) * areaLights.size());
-	areaLightBuffer->unmap();
-	m_context["area_lights"]->set(areaLightBuffer);
+	if (!areaLights.empty()) {
+		RectangleLight* areaLightArray = &areaLights[0];
+		Buffer areaLightBuffer = m_context->createBuffer(RT_BUFFER_INPUT);
+		areaLightBuffer->setFormat(RT_FORMAT_USER);
+		areaLightBuffer->setElementSize(sizeof(RectangleLight));
+		areaLightBuffer->setSize(areaLights.size());
+		memcpy(areaLightBuffer->map(), areaLightArray, sizeof(RectangleLight) * areaLights.size());
+		areaLightBuffer->unmap();
+		m_context["area_lights"]->set(areaLightBuffer);
+	}
 }
 
 void Scene::makeMaterialPrograms( Material material, const char *filename, 

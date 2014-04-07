@@ -39,7 +39,6 @@ public:
 	void trace( const RayGenCameraData& camera_data );
 	void doResize( unsigned int width, unsigned int depth );
 	Buffer getOutputBuffer();
-	bool keyPressed(unsigned char key, int x, int y);
 
 	void initObjects();
 	void resetObjects();

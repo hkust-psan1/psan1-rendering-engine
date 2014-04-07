@@ -60,6 +60,9 @@ rtTextureSampler<float4, 2> normal_map;
 
 rtDeclareVariable(int, soft_shadow_on, ,) = false;
 rtDeclareVariable(int, glossy_on, ,) = false;
+rtDeclareVariable(int, gi_on, ,) = false;
+
+rtDeclareVariable(unsigned int, frame_number, , );
 
 // rtBuffer<BasicLight> lights;
 rtBuffer<RectangleLight> area_lights;
@@ -123,6 +126,15 @@ static __device__ float3 randomizeVector(const float3& v, float amount, unsigned
 	return rand_vec;
 }
 
+static __device__ __inline__ void createONB( const optix::float3& n, optix::float3& U, optix::float3& V) {
+	U = cross( n, make_float3( 0.0f, 1.0f, 0.0f ) );
+	if ( dot(U, U) < 1.e-3f ) {
+		U = cross( n, make_float3( 1.0f, 0.0f, 0.0f ) );
+	}
+	U = normalize( U );
+	V = cross( n, U );
+}
+
 static __device__ __inline__ float3 TraceRay(float3 origin, float3 direction, int depth, float importance )
 {
 	optix::Ray ray = optix::make_Ray( origin, direction, radiance_ray_type, 0.0f, RT_DEFAULT_MAX );
@@ -142,15 +154,101 @@ RT_PROGRAM void any_hit_shadow()
 	}
 }
 
-RT_PROGRAM void closest_hit_radiance()
-{
+RT_PROGRAM void closest_hit_radiance_gi() {
 	if (is_emissive) { // emissive object, just return the light color
-		prd_radiance.result = make_float3(1, 1, 1);
+		prd_radiance.result = k_emission;
+		return;
+	}
+
+	if (prd_radiance.importance < importance_cutoff) {
+		prd_radiance.result = make_float3(0);
 		return;
 	}
 
 	// seed used for random number generation
-	unsigned int seed = tea<16>(thread_index.y * thread_dim.x + thread_index.x, thread_index.y);;
+	unsigned int seed = tea<16>(thread_index.y * thread_dim.x + thread_index.x, thread_index.y + frame_number);
+
+	const float3 ray_dir = ray.direction; 
+	const float3 uvw = texcoord;
+
+	// first hit point
+	const float3 fhp = rtTransformPoint(RT_OBJECT_TO_WORLD, front_hit_point);
+
+	float3 kd;
+	if (has_diffuse_map) { // has diffuse map, sample the texture
+		kd = make_float3( tex2D( kd_map, uvw.x, uvw.y ) );
+	} else {
+		kd = k_diffuse;
+	}
+
+	float3 ks;
+	if (has_specular_map) { // has specular map, sample the texture
+		ks = make_float3( tex2D( ks_map, uvw.x, uvw.y ) );
+	} else {
+		ks = k_specular;
+	}
+
+	// Here tangent, bitangent and normal are attribute variables set in the ray-generation program,
+	// transform them to the work space using the normal transformation matrix
+	const float3 T = normalize(rtTransformNormal(RT_OBJECT_TO_WORLD, tangent)); // tangent	
+	const float3 B = normalize(rtTransformNormal(RT_OBJECT_TO_WORLD, bitangent)); // bitangent	
+	const float3 N = normalize(rtTransformNormal(RT_OBJECT_TO_WORLD, shading_normal)); // normal	
+
+	// normal vector after considering normal map (if any)
+	float3 normal;
+
+	if (has_normal_map) { // has normal map, sample the texture
+		const float3 k_normal = make_float3( tex2D( normal_map, uvw.x, uvw.y) );
+		const float3 coeff = k_normal * 2 - make_float3(1, 1, 1); // transform from RGB to normal
+		normal = T * coeff.x + B * coeff.y + N * coeff.z;
+	} else {
+		normal = N;
+	}
+
+	// ambient lighting
+	float3 result = kd * ambient_light_color;
+
+	for (int i = 0; i < area_lights.size(); i++) {
+		RectangleLight light = area_lights[i];
+
+		// float3 sampledPos = light.pos + rnd(seed) * light.r1 + rnd(seed) * light.r2;
+		float3 sampledPos = light.pos + 0.5 * light.r1 + 0.5 * light.r2;
+
+		float Ldist = length(sampledPos - fhp);
+
+		float3 L = normalize(sampledPos - fhp);
+		float3 H = normalize(L - ray.direction);
+
+		float nDl = dot(normal, L);
+
+		// cast shadow ray
+		PerRayData_shadow shadow_prd;
+		shadow_prd.attenuation = make_float3(1);
+
+		if(nDl > 0) {
+			Ray shadow_ray = make_Ray( fhp, L, shadow_ray_type, scene_epsilon, Ldist );
+			rtTrace(top_shadower, shadow_ray, shadow_prd);
+			result += light.color * shadow_prd.attenuation 
+				* (kd * nDl + ks * max(pow(dot(H, normal), ns), .0f));
+		}
+	}
+	prd_radiance.result = result;
+}
+
+RT_PROGRAM void closest_hit_radiance()
+{
+	if (is_emissive) { // emissive object, just return the light color
+		prd_radiance.result = k_emission;
+		return;
+	}
+
+	if (prd_radiance.depth > max_depth || prd_radiance.importance < importance_cutoff) {
+		prd_radiance.result = make_float3(0);
+		return;
+	}
+
+	// seed used for random number generation
+	unsigned int seed = tea<16>(thread_index.y * thread_dim.x + thread_index.x, thread_index.y + frame_number);
 
 	const float3 ray_dir = ray.direction; 
 	const float3 uvw = texcoord;
@@ -227,6 +325,21 @@ RT_PROGRAM void closest_hit_radiance()
 					* (kd * nDl + ks * max(pow(dot(H, normal), ns), .0f)) / numShadowSamples;
 			}
 		}
+	}
+
+	/* global illunimation */
+	if (gi_on) {
+		float3 p;
+		cosine_sample_hemisphere(rnd(seed), rnd(seed), p);
+		float3 v1, v2;
+		createONB(normal, v1, v2);
+
+		float3 random_ray_direction = v1 * p.x + v2 * p.y + normal * p.z;
+
+		float3 random_ray_color = TraceRay(fhp, random_ray_direction, prd_radiance.depth + 1, 
+			prd_radiance.importance / 5) * kd;
+
+		result += random_ray_color;
 	}
 
 	/* reflection */

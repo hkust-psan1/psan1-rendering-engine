@@ -25,6 +25,8 @@ public:
 	static void softShadowLightButtonPressed();
 	static void glossyLightButtonPressed();
 	static void aaLightButtonPressed();
+	static void motionBlurLightButtonPressed();
+	static void giLightButtonPressed();
 
 	static Scene* scene;
 
@@ -42,6 +44,8 @@ public:
 	static bool softShadowOn;
 	static bool glossyOn;
 	static bool aaOn;
+	static bool motionBlurOn;
+	static bool giOn;
 
 	static Fl_Button* startButton;
 	static Fl_Button* pauseButton;
@@ -55,7 +59,8 @@ public:
 	static Fl_Light_Button* softShadowLightButton;
 	static Fl_Light_Button* glossyLightButton;
 	static Fl_Light_Button* aaLightButton;
-
+	static Fl_Light_Button* motionBlurLightButton;
+	static Fl_Light_Button* giLightButton;
 };
 
 #endif

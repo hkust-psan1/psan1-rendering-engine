@@ -9,6 +9,7 @@
 Context SceneObject::context = NULL;
 Program SceneObject::closest_hit = NULL;
 Program SceneObject::any_hit= NULL;
+Program SceneObject::closest_hit_gi = NULL;
 Program SceneObject::mesh_intersect = NULL;
 Program SceneObject::mesh_bounds = NULL;
 
@@ -95,6 +96,7 @@ void SceneObject::initGraphics(std::string obj_path, std::string mtl_path, std::
 	GeometryGroup group = context->createGeometryGroup();
 
 	Material mat = context->createMaterial();
+	// mat->setClosestHitProgram(0, closest_hit_gi);
 	mat->setClosestHitProgram(0, closest_hit);
 	mat->setAnyHitProgram(1, any_hit);
 
@@ -114,11 +116,12 @@ void SceneObject::initGraphics(std::string obj_path, std::string mtl_path, std::
 		m_ke = make_float3(1);
 		m_emissive = true;
 	} else if (obj_path.find("Floor") != std::string::npos) {
-		m_kd = make_float3(0.2, 0.2, 0.2);
-		m_diffuseMapFilename = "floor_COLOR.ppm";
-		m_ks = make_float3(0);
+		m_kd = make_float3(1.0, 0.2, 0.2);
+		// m_diffuseMapFilename = "floor_COLOR.ppm";
+		/*
 		m_krefl = make_float3(0.5);
 		m_glossiness = 0.3;
+		*/
 	} else if (obj_path.find("Table") != std::string::npos) {
 		m_diffuseMapFilename = "table_COLOR.ppm";
 		m_ks = make_float3(0.1);
@@ -134,8 +137,11 @@ void SceneObject::initGraphics(std::string obj_path, std::string mtl_path, std::
 		m_diffuseMapFilename = "marble-table_COLOR.ppm";
 	} else if (obj_path.find("Suzanne") != std::string::npos) {
 		m_ks = make_float3(0.6);
-		m_glossiness = 0.1;
 		m_krefl = make_float3(0.5);
+	} else if (obj_path.find("Hidden") != std::string::npos) {
+		m_kd = make_float3(0.8);
+	} else if (obj_path.find("Left") != std::string::npos) {
+		m_kd = make_float3(0.8);
 	}
 
 	// used for the bowling scene

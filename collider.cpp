@@ -141,6 +141,7 @@ void Collider::initPhysics(std::string obj_path) {
 	btRigidBody::btRigidBodyConstructionInfo info(m_mass, state, compound, inertia);
 
 	m_rigidBody = new btRigidBody(info);
+	m_rigidBody->setRestitution(0.6);
 }
 
 void Collider::setInitialPosition(btVector3 pos) {

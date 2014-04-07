@@ -51,6 +51,7 @@ public:
 	static Program mesh_bounds;
 	static Program closest_hit;
 	static Program any_hit;
+	static Program closest_hit_gi;
 
 protected:
 	Transform m_transform;

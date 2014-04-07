@@ -12,6 +12,8 @@ bool GUIControl::dofOn = false;
 bool GUIControl::softShadowOn = false;
 bool GUIControl::glossyOn = false;
 bool GUIControl::aaOn = false;
+bool GUIControl::motionBlurOn = false;
+bool GUIControl::giOn = false;
 
 Fl_Button* GUIControl::startButton;
 Fl_Button* GUIControl::pauseButton;
@@ -25,6 +27,8 @@ Fl_Light_Button* GUIControl::dofLightButton;
 Fl_Light_Button* GUIControl::softShadowLightButton;
 Fl_Light_Button* GUIControl::glossyLightButton;
 Fl_Light_Button* GUIControl::aaLightButton;
+Fl_Light_Button* GUIControl::motionBlurLightButton;
+Fl_Light_Button* GUIControl::giLightButton;
 
 void GUIControl::startButtonPressed() {
 	if (!scene) {
@@ -135,8 +139,16 @@ void GUIControl::aaLightButtonPressed() {
 	aaOn = !aaOn;
 }
 
+void GUIControl::motionBlurLightButtonPressed() {
+	motionBlurOn = !motionBlurOn;
+}
+
+void GUIControl::giLightButtonPressed() {
+	giOn = !giOn;
+}
+
 void GUIControl::showControlDialog() {
-	Fl_Window* window = new Fl_Window(300, 500);
+	Fl_Window* window = new Fl_Window(300, 600);
 
 	window->begin();
 
@@ -181,6 +193,12 @@ void GUIControl::showControlDialog() {
 
 	aaLightButton = new Fl_Light_Button(0, 420, 300, 30, "anti-aliasing");
 	aaLightButton->callback((Fl_Callback*) aaLightButtonPressed);
+
+	motionBlurLightButton = new Fl_Light_Button(0, 460, 300, 30, "motion blur");
+	motionBlurLightButton->callback((Fl_Callback*) motionBlurLightButtonPressed);
+
+	giLightButton = new Fl_Light_Button(0, 500, 300, 30, "global illumination");
+	giLightButton->callback((Fl_Callback*) giLightButtonPressed);
 
 	window->end();
 	window->show();

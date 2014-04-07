@@ -14,7 +14,7 @@ std::vector<SceneObject*> ObjFileProcessor::processObject(std::string filename, 
 		sceneObjects.push_back(so);
 
 		// used for the kitchen scene
-		if (it->first.find("Falling") != std::string::npos) {
+		if (it->first.find("Suzanne") != std::string::npos) {
 			Collider* c = new Collider;
 			c->setMass(1);
 			c->initPhysics(targetDir + it->first);
@@ -79,6 +79,8 @@ void ObjFileProcessor::processObjFile(std::string filename, std::string targetDi
 
 			getline(ss, part, '\n');
 			objName = part + ".obj";
+
+			printf("parsing: %s\n", part.c_str());
 
 			if (output) { // output stream already initialized
 				output.close();
