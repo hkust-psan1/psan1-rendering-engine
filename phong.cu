@@ -27,9 +27,6 @@ rtDeclareVariable(float3, back_hit_point, attribute back_hit_point, );
 rtDeclareVariable(Ray, ray, rtCurrentRay, );
 rtDeclareVariable(float, isect_dist, rtIntersectionDistance, );
 
-rtDeclareVariable(float3, tile_size, , ); 
-rtDeclareVariable(float3, tile_color_dark, , );
-rtDeclareVariable(float3, tile_color_light, , );
 rtDeclareVariable(float3, ambient_light_color, , );
 
 rtDeclareVariable(int, is_emissive, , );
@@ -84,6 +81,10 @@ rtDeclareVariable(PerRayData_shadow, prd_shadow, rtPayload, );
 
 #define PI 3.1415926
 
+static __device__ __inline__ bool float_vec_length(float3 v) {
+	return sqrt(v.x * v.x + v.y * v.y + v.z * v.z);
+}
+
 static __device__ __inline__ bool floatVecZero(float3 v) {
 	return v.x < scene_epsilon && v.y < scene_epsilon && v.z < scene_epsilon;
 }
@@ -96,9 +97,13 @@ static __device__ __inline__ float3 schlick(float nDi, const float3& rgb) {
 	return make_float3(r, g, b);
 }
 
+static __device__ __inline__ float float3_sum(float3 v) {
+	return v.x + v.y + v.z;
+}
+
 /*  randomize a vector based on normal distribution, used for 
     normal vectors in glossy reflection and refraction */
-static __device__ float3 randomizeVector(const float3& v, float amount, unsigned int& seed) {
+static __device__ float3 randomize_vector(const float3& v, float amount, unsigned int& seed) {
 	// two random number for normal distribution
 	float rand1 = rnd(seed), rand2 = rnd(seed);
 
@@ -152,87 +157,6 @@ RT_PROGRAM void any_hit_shadow()
 		prd_shadow.attenuation = make_float3(0.0f);
 		rtTerminateRay();
 	}
-}
-
-RT_PROGRAM void closest_hit_radiance_gi() {
-	if (is_emissive) { // emissive object, just return the light color
-		prd_radiance.result = k_emission;
-		return;
-	}
-
-	if (prd_radiance.importance < importance_cutoff) {
-		prd_radiance.result = make_float3(0);
-		return;
-	}
-
-	// seed used for random number generation
-	unsigned int seed = tea<16>(thread_index.y * thread_dim.x + thread_index.x, thread_index.y + frame_number);
-
-	const float3 ray_dir = ray.direction; 
-	const float3 uvw = texcoord;
-
-	// first hit point
-	const float3 fhp = rtTransformPoint(RT_OBJECT_TO_WORLD, front_hit_point);
-
-	float3 kd;
-	if (has_diffuse_map) { // has diffuse map, sample the texture
-		kd = make_float3( tex2D( kd_map, uvw.x, uvw.y ) );
-	} else {
-		kd = k_diffuse;
-	}
-
-	float3 ks;
-	if (has_specular_map) { // has specular map, sample the texture
-		ks = make_float3( tex2D( ks_map, uvw.x, uvw.y ) );
-	} else {
-		ks = k_specular;
-	}
-
-	// Here tangent, bitangent and normal are attribute variables set in the ray-generation program,
-	// transform them to the work space using the normal transformation matrix
-	const float3 T = normalize(rtTransformNormal(RT_OBJECT_TO_WORLD, tangent)); // tangent	
-	const float3 B = normalize(rtTransformNormal(RT_OBJECT_TO_WORLD, bitangent)); // bitangent	
-	const float3 N = normalize(rtTransformNormal(RT_OBJECT_TO_WORLD, shading_normal)); // normal	
-
-	// normal vector after considering normal map (if any)
-	float3 normal;
-
-	if (has_normal_map) { // has normal map, sample the texture
-		const float3 k_normal = make_float3( tex2D( normal_map, uvw.x, uvw.y) );
-		const float3 coeff = k_normal * 2 - make_float3(1, 1, 1); // transform from RGB to normal
-		normal = T * coeff.x + B * coeff.y + N * coeff.z;
-	} else {
-		normal = N;
-	}
-
-	// ambient lighting
-	float3 result = kd * ambient_light_color;
-
-	for (int i = 0; i < area_lights.size(); i++) {
-		RectangleLight light = area_lights[i];
-
-		// float3 sampledPos = light.pos + rnd(seed) * light.r1 + rnd(seed) * light.r2;
-		float3 sampledPos = light.pos + 0.5 * light.r1 + 0.5 * light.r2;
-
-		float Ldist = length(sampledPos - fhp);
-
-		float3 L = normalize(sampledPos - fhp);
-		float3 H = normalize(L - ray.direction);
-
-		float nDl = dot(normal, L);
-
-		// cast shadow ray
-		PerRayData_shadow shadow_prd;
-		shadow_prd.attenuation = make_float3(1);
-
-		if(nDl > 0) {
-			Ray shadow_ray = make_Ray( fhp, L, shadow_ray_type, scene_epsilon, Ldist );
-			rtTrace(top_shadower, shadow_ray, shadow_prd);
-			result += light.color * shadow_prd.attenuation 
-				* (kd * nDl + ks * max(pow(dot(H, normal), ns), .0f));
-		}
-	}
-	prd_radiance.result = result;
 }
 
 RT_PROGRAM void closest_hit_radiance()
@@ -336,10 +260,13 @@ RT_PROGRAM void closest_hit_radiance()
 
 		float3 random_ray_direction = v1 * p.x + v2 * p.y + normal * p.z;
 
-		float3 random_ray_color = TraceRay(fhp, random_ray_direction, prd_radiance.depth + 1, 
-			prd_radiance.importance / 5) * kd;
+		int depth = prd_radiance.depth + 1;
+		if (depth <= max_depth) {
+			float3 random_ray_color = TraceRay(fhp, random_ray_direction, depth,
+				prd_radiance.importance) * kd;
 
-		result += random_ray_color;
+			result += random_ray_color;
+		}
 	}
 
 	/* reflection */
@@ -357,7 +284,7 @@ RT_PROGRAM void closest_hit_radiance()
 			
 			if (importance > importance_cutoff) {
 				for (int i = 0; i < numGlossySample; i++) {
-					float3 randomizedRefl = randomizeVector(refl, glossiness, seed);
+					float3 randomizedRefl = randomize_vector(refl, glossiness, seed);
 					refl_color += TraceRay(fhp, randomizedRefl, depth + 1, importance / float(numGlossySample))
 						/ numGlossySample;
 				}
@@ -382,7 +309,7 @@ RT_PROGRAM void closest_hit_radiance()
 				cos_theta = dot(transmission_direction, normal);
 			}
 
-			// refr_color = TraceRay(fhp, transmission_direction, depth + 1, prd_radiance.importance) / 3.0;
+			refr_color = TraceRay(fhp, transmission_direction, depth + 1, prd_radiance.importance) * k_refractive;
 
 			/*
 			float importance = prd_radiance.importance * (1 - reflection) * optix::luminance(k_reflective * beer_attenuation);

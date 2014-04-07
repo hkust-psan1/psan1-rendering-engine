@@ -200,7 +200,7 @@ void Scene::createContext( InitialCameraData& camera_data ) {
 	m_context["ambient_light_color"]->setFloat( 0.1f, 0.1f, 0.1f );
 	
 	// Used by both exception programs
-	m_context["bad_color"]->setFloat( 0.0f, 1.0f, 1.0f );
+	m_context["bad_color"]->setFloat( 1.0f, 0.0f, 0.0f );
 
 	// Miss program.
 	ptx_path = ptxpath( "tracer", "gradientbg.cu" );
@@ -304,7 +304,6 @@ void Scene::initObjects() {
 
 	SceneObject::closest_hit = m_context->createProgramFromPTXFile(mat_path, "closest_hit_radiance");
 	SceneObject::any_hit = m_context->createProgramFromPTXFile(mat_path, "any_hit_shadow");
-	SceneObject::closest_hit_gi = m_context->createProgramFromPTXFile(mat_path, "closest_hit_radiance_gi");
 
 	SceneObject::mesh_intersect = m_context->createProgramFromPTXFile(prog_path, "mesh_intersect");
 	SceneObject::mesh_bounds = m_context->createProgramFromPTXFile(prog_path, "mesh_bounds");
