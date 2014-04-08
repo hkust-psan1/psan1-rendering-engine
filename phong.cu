@@ -151,7 +151,7 @@ static __device__ __inline__ float3 TraceRay(float3 origin, float3 direction, in
 RT_PROGRAM void any_hit_shadow()
 {
 	if (!is_emissive) {
-		prd_shadow.attenuation = make_float3(0.0f);
+		prd_shadow.attenuation = make_float3(0.0); // TODO
 		rtTerminateRay();
 	}
 }
@@ -208,6 +208,7 @@ RT_PROGRAM void closest_hit_radiance()
 
 	// first hit point
 	const float3 fhp = rtTransformPoint(RT_OBJECT_TO_WORLD, front_hit_point);
+	const float3 bhp = rtTransformPoint(RT_OBJECT_TO_WORLD, back_hit_point);
 
 	// starting from the ambient color
 	prd_radiance.result = kd * ambient_light_color;
@@ -265,13 +266,17 @@ RT_PROGRAM void closest_hit_radiance()
 	float diffuse_importance = diffuse_amount / total_amount * prd_radiance.importance;
 
 	if (gi_on && diffuse_importance > importance_cutoff) {
+		// randomly sample a vector in the hemisphere 
 		float3 p;
 		cosine_sample_hemisphere(rnd(seed), rnd(seed), p);
+
+		// create two vectors perpendicular to the normal
 		float3 v1, v2;
 		createONB(normal, v1, v2);
 
 		float3 random_ray_direction = v1 * p.x + v2 * p.y + normal * p.z;
 
+		// reduce importance more for indirect lighting to speed up rendering (divide by 2)
 		prd_radiance.result += diffuse_importance * kd 
 			* TraceRay(fhp, random_ray_direction, new_depth, diffuse_importance / 2);
 	}
@@ -300,13 +305,12 @@ RT_PROGRAM void closest_hit_radiance()
 	}
 
 	/* refraction */
-	/*
 	float refractive_importance = refractive_amount / total_amount * prd_radiance.importance;
 
 	if (!float_vec_zero(k_refractive) && refractive_importance > importance_cutoff) {
 
 		float3 transmission_direction;
-		if (refract(transmission_direction, ray_dir, normal, IOR)) {
+		if (refract(transmission_direction, ray_dir, N, IOR)) {
 			// check whether it is internal or external refraction
 			float cos_theta = dot(ray_dir, normal);
 			if (cos_theta < 0) { // external
@@ -316,10 +320,9 @@ RT_PROGRAM void closest_hit_radiance()
 			}
 
 			prd_radiance.result += refractive_importance * k_refractive 
-				* TraceRay(fhp, transmission_direction, new_depth, refractive_importance / 2);
+				* TraceRay(bhp, transmission_direction, new_depth, refractive_importance / 2);
 		}
 	}
-	*/
 	
 }
 
