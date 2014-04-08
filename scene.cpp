@@ -149,12 +149,12 @@ void Scene::createContext( InitialCameraData& camera_data ) {
 	// Context
 	m_context->setEntryPointCount( 3 );
 	m_context->setRayTypeCount( 2 );
-	m_context->setStackSize( 2400 );
+	m_context->setStackSize( 4800 );
 
 	m_context["scene_epsilon"]->setFloat( 1.e-3f );
 	m_context["radiance_ray_type"]->setUint( 0u );
 	m_context["shadow_ray_type"]->setUint( 1u );
-	m_context["max_depth"]->setInt( 10 );
+	m_context["max_depth"]->setInt( 5 );
 	m_context["frame_number"]->setUint( 0u );
 	
 	m_context["focal_scale"]->setFloat( 0.0f ); // Value is set in trace()

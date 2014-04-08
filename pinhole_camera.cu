@@ -121,5 +121,5 @@ RT_PROGRAM void pinhole_camera()
 
 RT_PROGRAM void exception()
 {
-	rtPrintExceptionDetails(); 	write_output(bad_color);
+	write_output(bad_color);
 }

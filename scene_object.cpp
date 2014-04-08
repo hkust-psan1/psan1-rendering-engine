@@ -115,7 +115,7 @@ void SceneObject::initGraphics(std::string obj_path, std::string mtl_path, std::
 		m_emissive = true;
 	} else if (obj_path.find("Floor") != std::string::npos) {
 		m_diffuseMapFilename = "floor_COLOR.ppm";
-		m_krefl = make_float3(0.5);
+		// m_krefl = make_float3(0.5);
 		/*
 		m_glossiness = 0.3;
 		*/
@@ -124,7 +124,7 @@ void SceneObject::initGraphics(std::string obj_path, std::string mtl_path, std::
 		m_ks = make_float3(0.1);
 	} else if (obj_path.find("Cabinet") != std::string::npos) {
 		m_diffuseMapFilename = "cabinet.ppm";
-		// m_krefr = make_float3(0.8);
+		m_krefr = make_float3(0.8);
 	} else if (obj_path.find("Marble-Top") != std::string::npos) {
 		m_diffuseMapFilename = "marble-table_COLOR.ppm";
 	} else if (obj_path.find("Board") != std::string::npos) {
@@ -136,6 +136,8 @@ void SceneObject::initGraphics(std::string obj_path, std::string mtl_path, std::
 		m_kd = make_float3(0.8);
 	} else if (obj_path.find("Left") != std::string::npos) {
 		m_kd = make_float3(0.8);
+	} else if (obj_path.find("Roof") != std::string::npos) {
+		// m_krefl = make_float3(0.5);
 	}
 
 	// used for the bowling scene

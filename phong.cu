@@ -6,9 +6,6 @@
 
 using namespace optix;
 
-// use offline rendering
-
-// rtDeclareVariable(unsigned int, thread_index, attribute thread_index, );
 rtDeclareVariable(uint2, thread_index, rtLaunchIndex, );
 rtDeclareVariable(uint2, thread_dim, rtLaunchDim, );
 
@@ -51,9 +48,9 @@ rtDeclareVariable(int, has_diffuse_map, , );
 rtDeclareVariable(int, has_normal_map, , );
 rtDeclareVariable(int, has_specular_map, , );
 
-rtTextureSampler<float4, 2> kd_map;
-rtTextureSampler<float4, 2> ks_map;
-rtTextureSampler<float4, 2> normal_map;
+rtTextureSampler<float4, 2> kd_map = NULL;
+rtTextureSampler<float4, 2> ks_map = NULL;
+rtTextureSampler<float4, 2> normal_map = NULL;
 
 rtDeclareVariable(int, soft_shadow_on, ,) = false;
 rtDeclareVariable(int, glossy_on, ,) = false;
@@ -81,11 +78,11 @@ rtDeclareVariable(PerRayData_shadow, prd_shadow, rtPayload, );
 
 #define PI 3.1415926
 
-static __device__ __inline__ bool float_vec_length(float3 v) {
+static __device__ __inline__ float float_vec_length(float3 v) {
 	return sqrt(v.x * v.x + v.y * v.y + v.z * v.z);
 }
 
-static __device__ __inline__ bool floatVecZero(float3 v) {
+static __device__ __inline__ bool float_vec_zero(float3 v) {
 	return v.x < scene_epsilon && v.y < scene_epsilon && v.z < scene_epsilon;
 }
 
@@ -140,10 +137,10 @@ static __device__ __inline__ void createONB( const optix::float3& n, optix::floa
 	V = cross( n, U );
 }
 
-static __device__ __inline__ float3 TraceRay(float3 origin, float3 direction, int depth, float importance )
-{
+static __device__ __inline__ float3 TraceRay(float3 origin, float3 direction, int depth, float importance) {
 	optix::Ray ray = optix::make_Ray( origin, direction, radiance_ray_type, 0.0f, RT_DEFAULT_MAX );
 	PerRayData_radiance prd;
+	prd.result = make_float3(0);
 	prd.depth = depth;
 	prd.importance = importance;
 
@@ -161,13 +158,15 @@ RT_PROGRAM void any_hit_shadow()
 
 RT_PROGRAM void closest_hit_radiance()
 {
-	if (is_emissive) { // emissive object, just return the light color
-		prd_radiance.result = k_emission;
-		return;
-	}
-
+	/*
 	if (prd_radiance.depth > max_depth || prd_radiance.importance < importance_cutoff) {
 		prd_radiance.result = make_float3(0);
+		return;
+	}
+	*/
+
+	if (is_emissive) { // emissive object, just return the light color
+		prd_radiance.result = k_emission;
 		return;
 	}
 
@@ -175,18 +174,17 @@ RT_PROGRAM void closest_hit_radiance()
 	unsigned int seed = tea<16>(thread_index.y * thread_dim.x + thread_index.x, thread_index.y + frame_number);
 
 	const float3 ray_dir = ray.direction; 
-	const float3 uvw = texcoord;
 
 	float3 kd;
 	if (has_diffuse_map) { // has diffuse map, sample the texture
-		kd = make_float3( tex2D( kd_map, uvw.x, uvw.y ) );
+		kd = make_float3( tex2D( kd_map, texcoord.x, texcoord.y ) );
 	} else {
 		kd = k_diffuse;
 	}
 
 	float3 ks;
 	if (has_specular_map) { // has specular map, sample the texture
-		ks = make_float3( tex2D( ks_map, uvw.x, uvw.y ) );
+		ks = make_float3( tex2D( ks_map, texcoord.x, texcoord.y ) );
 	} else {
 		ks = k_specular;
 	}
@@ -201,7 +199,7 @@ RT_PROGRAM void closest_hit_radiance()
 	float3 normal;
 
 	if (has_normal_map) { // has normal map, sample the texture
-		const float3 k_normal = make_float3( tex2D( normal_map, uvw.x, uvw.y) );
+		const float3 k_normal = make_float3( tex2D( normal_map, texcoord.x, texcoord.y) );
 		const float3 coeff = k_normal * 2 - make_float3(1, 1, 1); // transform from RGB to normal
 		normal = T * coeff.x + B * coeff.y + N * coeff.z;
 	} else {
@@ -211,17 +209,15 @@ RT_PROGRAM void closest_hit_radiance()
 	// first hit point
 	const float3 fhp = rtTransformPoint(RT_OBJECT_TO_WORLD, front_hit_point);
 
-	const int depth = prd_radiance.depth;
-
 	// starting from the ambient color
-	float3 result = kd * ambient_light_color;
+	prd_radiance.result = kd * ambient_light_color;
 		
 	for (int i = 0; i < area_lights.size(); i++) {
 		RectangleLight light = area_lights[i];
 
 		// according to whether offline rendering is activated, use different number of samples to
 		// achieve soft or hard shadow
-		const int numShadowSamples = soft_shadow_on ? 30 : 1;
+		const int numShadowSamples = soft_shadow_on ? 10 : 1;
 
 		for (int j = 0; j < numShadowSamples; j++) {
 			float3 sampledPos;
@@ -245,14 +241,30 @@ RT_PROGRAM void closest_hit_radiance()
 			if(nDl > 0) {
 				optix::Ray shadow_ray = optix::make_Ray( fhp, L, shadow_ray_type, scene_epsilon, Ldist );
 				rtTrace(top_shadower, shadow_ray, shadow_prd);
-				result += light.color * shadow_prd.attenuation 
+				prd_radiance.result += light.color * shadow_prd.attenuation 
 					* (kd * nDl + ks * max(pow(dot(H, normal), ns), .0f)) / numShadowSamples;
 			}
 		}
 	}
 
+	const int new_depth = prd_radiance.depth + 1;
+
+	if (new_depth > max_depth) {
+		return;
+	}
+
+	float ambient_amount = float_vec_length(k_ambient);
+	float diffuse_amount = float_vec_length(k_diffuse);
+	float specular_amount = float_vec_length(k_specular);
+	float reflective_amount = float_vec_length(k_reflective);
+	float refractive_amount = float_vec_length(k_refractive);
+	float total_amount = ambient_amount + diffuse_amount 
+		+ specular_amount + reflective_amount + refractive_amount;
+
 	/* global illunimation */
-	if (gi_on) {
+	float diffuse_importance = diffuse_amount / total_amount * prd_radiance.importance;
+
+	if (gi_on && diffuse_importance > importance_cutoff) {
 		float3 p;
 		cosine_sample_hemisphere(rnd(seed), rnd(seed), p);
 		float3 v1, v2;
@@ -260,44 +272,38 @@ RT_PROGRAM void closest_hit_radiance()
 
 		float3 random_ray_direction = v1 * p.x + v2 * p.y + normal * p.z;
 
-		int depth = prd_radiance.depth + 1;
-		if (depth <= max_depth) {
-			float3 random_ray_color = TraceRay(fhp, random_ray_direction, depth,
-				prd_radiance.importance) * kd;
-
-			result += random_ray_color;
-		}
+		prd_radiance.result += diffuse_importance * kd 
+			* TraceRay(fhp, random_ray_direction, new_depth, diffuse_importance / 2);
 	}
 
 	/* reflection */
-	if (!floatVecZero(k_reflective) && depth < min(reflection_maxdepth, max_depth)) {
-		float3 refl_color = make_float3(0, 0, 0);
+	float reflective_importance = reflective_amount / total_amount * prd_radiance.importance;
+
+	if (!float_vec_zero(k_reflective) && reflective_importance > importance_cutoff) {
 
 		// reflection direction
 		const float3 refl = reflect(ray_dir, normal);
-		const float3 fresnel = schlick(- dot(normal, ray_dir), k_reflective);
-		float importance = prd_radiance.importance * optix::luminance(fresnel);
 
 		// number of samples to take for each reflection
 		if (glossy_on) {
-			const int numGlossySample = 30;
+			const int num_glossy_sample = 10;
 			
-			if (importance > importance_cutoff) {
-				for (int i = 0; i < numGlossySample; i++) {
-					float3 randomizedRefl = randomize_vector(refl, glossiness, seed);
-					refl_color += TraceRay(fhp, randomizedRefl, depth + 1, importance / float(numGlossySample))
-						/ numGlossySample;
-				}
+			for (int i = 0; i < num_glossy_sample; i++) {
+				float3 randomizedRefl = randomize_vector(refl, glossiness, seed);
+				prd_radiance.result += reflective_importance * k_reflective
+					* TraceRay(fhp, randomizedRefl, new_depth, reflective_importance) / num_glossy_sample;
 			}
 		} else {
-			refl_color = TraceRay(fhp, refl, depth + 1, importance);
+			prd_radiance.result += reflective_importance * k_reflective 
+				* TraceRay(fhp, refl, new_depth, reflective_importance);
 		}
-		result += k_reflective * refl_color;
 	}
 
 	/* refraction */
-	if (!floatVecZero(k_refractive) && depth < min(refraction_maxdepth, max_depth)) {
-		float3 refr_color = make_float3(0, 0, 0);
+	/*
+	float refractive_importance = refractive_amount / total_amount * prd_radiance.importance;
+
+	if (!float_vec_zero(k_refractive) && refractive_importance > importance_cutoff) {
 
 		float3 transmission_direction;
 		if (refract(transmission_direction, ray_dir, normal, IOR)) {
@@ -309,18 +315,11 @@ RT_PROGRAM void closest_hit_radiance()
 				cos_theta = dot(transmission_direction, normal);
 			}
 
-			refr_color = TraceRay(fhp, transmission_direction, depth + 1, prd_radiance.importance) * k_refractive;
-
-			/*
-			float importance = prd_radiance.importance * (1 - reflection) * optix::luminance(k_reflective * beer_attenuation);
-			if (importance > importance_cutoff) {
-				// refr_color = TraceRay(fhp, transmission_direction, depth + 1, importance);
-			}
-			*/
+			prd_radiance.result += refractive_importance * k_refractive 
+				* TraceRay(fhp, transmission_direction, new_depth, refractive_importance / 2);
 		}
-		result += refr_color;
 	}
+	*/
 	
-	prd_radiance.result = result;
 }
 
