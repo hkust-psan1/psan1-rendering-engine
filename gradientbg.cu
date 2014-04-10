@@ -49,5 +49,5 @@ RT_PROGRAM void miss()
 
   prd_radiance.result = result;
   */
-	prd_radiance.result = background_dark;
+	prd_radiance.result = make_float3(1);
 }

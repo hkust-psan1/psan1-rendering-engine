@@ -19,7 +19,7 @@ class Collider {
 public:
 	Collider();
 
-	virtual void initPhysics(std::string obj_path);
+	void initPhysics(std::string obj_path);
 	
 	void setInitialPosition(btVector3 pos);
 
@@ -36,6 +36,14 @@ protected:
 	SceneObject* m_parent;
 	btRigidBody* m_rigidBody;
 	btScalar m_mass;
+};
+
+class SphereCollider : public Collider {
+public:
+	void initPhysics(float radius);
+
+protected:
+	float m_radius;
 };
 
 #endif

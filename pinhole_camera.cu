@@ -30,7 +30,7 @@ rtDeclareVariable(float3, U, , ) = { 0.0f, 1.0f, 0.0f };
 rtDeclareVariable(float3, V, , ) = { 0.0f, 0.0f, 1.0f };
 rtDeclareVariable(float3, W, , ) = { -1.0f, 0.0f, 0.0f };
 rtDeclareVariable(float3, bad_color, , );
-rtDeclareVariable(float, scene_epsilon, , ) = 0.1f;
+rtDeclareVariable(float, scene_epsilon, , ) = 0.05f;
 rtDeclareVariable(rtObject, top_object, , );
 rtDeclareVariable(unsigned int,	radiance_ray_type, , );
 
@@ -119,7 +119,14 @@ RT_PROGRAM void pinhole_camera()
 	write_output(result);
 }
 
+
 RT_PROGRAM void exception()
+{
+	write_output(bad_color);
+}
+
+
+RT_PROGRAM void miss()
 {
 	write_output(bad_color);
 }

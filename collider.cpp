@@ -178,3 +178,16 @@ void Collider::step() {
 
 	m_parent->setTransformMatrix(m);
 }
+
+void SphereCollider::initPhysics(float radius) {
+	btCollisionShape* sphereShape = new btSphereShape(1);
+	btDefaultMotionState* state = new btDefaultMotionState(
+		btTransform(btQuaternion(0, 0, 0, 1), btVector3(0, 0, 0)));
+
+	btVector3 inertia(0, 0, 0);
+
+	sphereShape->calculateLocalInertia(m_mass, inertia);
+
+	btRigidBody::btRigidBodyConstructionInfo info(m_mass, state, sphereShape, inertia);
+	m_rigidBody = new btRigidBody(info);
+}

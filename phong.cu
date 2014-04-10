@@ -11,13 +11,17 @@ rtDeclareVariable(uint2, thread_dim, rtLaunchDim, );
 
 rtDeclareVariable(rtObject, top_object, , );
 rtDeclareVariable(rtObject, top_shadower, , );
+
 rtDeclareVariable(float, scene_epsilon, , );
 rtDeclareVariable(int, max_depth, , );
+
 rtDeclareVariable(unsigned int, radiance_ray_type, , );
 rtDeclareVariable(unsigned int, shadow_ray_type, , );
+
 rtDeclareVariable(float3, shading_normal, attribute shading_normal, );
 rtDeclareVariable(float3, tangent, attribute tangent, ); 
 rtDeclareVariable(float3, bitangent, attribute bitangent, ); 
+
 rtDeclareVariable(float3, front_hit_point, attribute front_hit_point, );
 rtDeclareVariable(float3, back_hit_point, attribute back_hit_point, );
 
@@ -27,22 +31,23 @@ rtDeclareVariable(float, isect_dist, rtIntersectionDistance, );
 rtDeclareVariable(float3, ambient_light_color, , );
 
 rtDeclareVariable(int, is_emissive, , );
-
 rtDeclareVariable(float3, k_emission, , );
-rtDeclareVariable(float3, k_ambient, , );
+
 rtDeclareVariable(float3, k_diffuse, , );
+
 rtDeclareVariable(float3, k_specular, , );
-rtDeclareVariable(float3, k_reflective, , );
-rtDeclareVariable(float3, k_refractive, , );
 rtDeclareVariable(int, ns, , );
+
+rtDeclareVariable(float3, k_reflective, , );
 rtDeclareVariable(float, glossiness, , );
+
+rtDeclareVariable(float3, alpha, , );
+rtDeclareVariable(float, IOR, , ) = 1.4;
 
 rtDeclareVariable(float3, texcoord, attribute texcoord, ); 
 rtDeclareVariable(float3, cutoff_color, , );
-rtDeclareVariable(int, reflection_maxdepth, , ) = 5;
-rtDeclareVariable(int, refraction_maxdepth, , ) = 5;
+
 rtDeclareVariable(float, importance_cutoff, , );
-rtDeclareVariable(float, IOR, , ) = 1.3;
 
 rtDeclareVariable(int, has_diffuse_map, , );
 rtDeclareVariable(int, has_normal_map, , );
@@ -58,32 +63,25 @@ rtDeclareVariable(int, gi_on, ,) = false;
 
 rtDeclareVariable(unsigned int, frame_number, , );
 
-// rtBuffer<BasicLight> lights;
 rtBuffer<RectangleLight> area_lights;
+rtBuffer<SpotLight> spot_lights;
 
-struct PerRayData_radiance
-{
+struct PerRayData_radiance {
 	float3 result;
 	float importance;
 	int depth;
 };
 
-struct PerRayData_shadow
-{
+struct PerRayData_shadow {
 	float3 attenuation;
 };
 
 rtDeclareVariable(PerRayData_radiance, prd_radiance, rtPayload, );
 rtDeclareVariable(PerRayData_shadow, prd_shadow, rtPayload, );
 
-#define PI 3.1415926
-
-static __device__ __inline__ float float_vec_length(float3 v) {
-	return sqrt(v.x * v.x + v.y * v.y + v.z * v.z);
-}
-
+/* vector can be ignored */
 static __device__ __inline__ bool float_vec_zero(float3 v) {
-	return v.x < scene_epsilon && v.y < scene_epsilon && v.z < scene_epsilon;
+	return length(v) < scene_epsilon;
 }
 
 /*	calculate fresnel reflection */
@@ -105,8 +103,8 @@ static __device__ float3 randomize_vector(const float3& v, float amount, unsigne
 	float rand1 = rnd(seed), rand2 = rnd(seed);
 
 	// X and Y are normally distributed random numbers
-	float X = sqrt(- 2 * log(rand1)) * cos(2 * PI * rand2) * amount / 5;
-	float Y = sqrt(- 2 * log(rand1)) * sin(2 * PI * rand2) * amount / 5;
+	float X = sqrt(- 2 * log(rand1)) * cos(2 * 3.14159 * rand2) * amount / 5;
+	float Y = sqrt(- 2 * log(rand1)) * sin(2 * 3.14159 * rand2) * amount / 5;
 
 	// make a vector not parallel to v to find v's tangent and bitangent
 	float3 u = v;
@@ -148,23 +146,45 @@ static __device__ __inline__ float3 TraceRay(float3 origin, float3 direction, in
 	return prd.result;
 }
 
+static __device__ float3 shade(
+		float3 light_pos, 
+		float3 hit_point, 
+		float3 ray_dir,
+		float3 kd,
+		float3 normal,
+		float3 ks) {
+	float Ldist = length(light_pos - hit_point);
+
+	float3 L = normalize(light_pos - hit_point);
+	float3 H = normalize(L - ray_dir);
+
+	float nDl = dot(normal, L);
+
+	float3 color = make_float3(0);
+
+	// cast shadow ray
+	PerRayData_shadow shadow_prd;
+	shadow_prd.attenuation = make_float3(1);
+
+	if(nDl > 0) {
+		optix::Ray shadow_ray = optix::make_Ray(hit_point, L, shadow_ray_type, scene_epsilon, Ldist);
+		rtTrace(top_shadower, shadow_ray, shadow_prd);
+		color += shadow_prd.attenuation * (kd * nDl + ks * max(pow(dot(H, normal), ns), .0f));
+	}
+
+	return color;
+}
+
 RT_PROGRAM void any_hit_shadow()
 {
 	if (!is_emissive) {
-		prd_shadow.attenuation = make_float3(0.0); // TODO
+		prd_shadow.attenuation = alpha; // TODO
 		rtTerminateRay();
 	}
 }
 
 RT_PROGRAM void closest_hit_radiance()
 {
-	/*
-	if (prd_radiance.depth > max_depth || prd_radiance.importance < importance_cutoff) {
-		prd_radiance.result = make_float3(0);
-		return;
-	}
-	*/
-
 	if (is_emissive) { // emissive object, just return the light color
 		prd_radiance.result = k_emission;
 		return;
@@ -172,8 +192,6 @@ RT_PROGRAM void closest_hit_radiance()
 
 	// seed used for random number generation
 	unsigned int seed = tea<16>(thread_index.y * thread_dim.x + thread_index.x, thread_index.y + frame_number);
-
-	const float3 ray_dir = ray.direction; 
 
 	float3 kd;
 	if (has_diffuse_map) { // has diffuse map, sample the texture
@@ -200,67 +218,83 @@ RT_PROGRAM void closest_hit_radiance()
 
 	if (has_normal_map) { // has normal map, sample the texture
 		const float3 k_normal = make_float3( tex2D( normal_map, texcoord.x, texcoord.y) );
-		const float3 coeff = k_normal * 2 - make_float3(1, 1, 1); // transform from RGB to normal
+		const float3 coeff = k_normal * 2 - make_float3(1); // transform from RGB to normal
 		normal = T * coeff.x + B * coeff.y + N * coeff.z;
 	} else {
 		normal = N;
 	}
 
-	// first hit point
+	// front hit point
 	const float3 fhp = rtTransformPoint(RT_OBJECT_TO_WORLD, front_hit_point);
-	const float3 bhp = rtTransformPoint(RT_OBJECT_TO_WORLD, back_hit_point);
 
 	// starting from the ambient color
 	prd_radiance.result = kd * ambient_light_color;
 		
 	for (int i = 0; i < area_lights.size(); i++) {
 		RectangleLight light = area_lights[i];
+		float3 sampledPos;
 
-		// according to whether offline rendering is activated, use different number of samples to
-		// achieve soft or hard shadow
-		const int numShadowSamples = soft_shadow_on ? 10 : 1;
+		if (soft_shadow_on) {
+			sampledPos = light.pos + rnd(seed) * light.r1 + rnd(seed) * light.r2;
+		} else {
+			sampledPos = light.pos + 0.5 * light.r1 + 0.5 * light.r2;
+		}
 
-		for (int j = 0; j < numShadowSamples; j++) {
-			float3 sampledPos;
-			if (soft_shadow_on) {
-				sampledPos = light.pos + rnd(seed) * light.r1 + rnd(seed) * light.r2;
-			} else {
-				sampledPos = light.pos + 0.5 * light.r1 + 0.5 * light.r2;
-			}
+		float Ldist = length(sampledPos - fhp);
 
-			float Ldist = length(sampledPos - fhp);
+		float3 L = normalize(sampledPos - fhp);
+		float3 H = normalize(L - ray.direction);
 
-			float3 L = normalize(sampledPos - fhp);
-			float3 H = normalize(L - ray.direction);
+		float nDl = dot(normal, L);
 
-			float nDl = dot(normal, L);
+		// cast shadow ray
+		PerRayData_shadow shadow_prd;
+		shadow_prd.attenuation = make_float3(1);
 
-			// cast shadow ray
-			PerRayData_shadow shadow_prd;
-			shadow_prd.attenuation = make_float3(1);
+		if(nDl > 0) {
+			optix::Ray shadow_ray = optix::make_Ray( fhp, L, shadow_ray_type, scene_epsilon, Ldist );
+			rtTrace(top_shadower, shadow_ray, shadow_prd);
+			prd_radiance.result += light.color * shadow_prd.attenuation 
+				* (kd * nDl + ks * max(pow(dot(H, normal), ns), .0f));
+		}
+	}
 
-			if(nDl > 0) {
-				optix::Ray shadow_ray = optix::make_Ray( fhp, L, shadow_ray_type, scene_epsilon, Ldist );
-				rtTrace(top_shadower, shadow_ray, shadow_prd);
-				prd_radiance.result += light.color * shadow_prd.attenuation 
-					* (kd * nDl + ks * max(pow(dot(H, normal), ns), .0f)) / numShadowSamples;
-			}
+	for (int i = 0; i < spot_lights.size(); i++) {
+		SpotLight light = spot_lights[i];
+
+		float Ldist = length(light.pos - fhp);
+
+		float3 L = normalize(light.pos - fhp);
+		float3 H = normalize(L - ray.direction);
+
+		float nDl = dot(normal, L);
+
+		float dir_diff = dot(normalize(light.direction), -L);
+		float angle_attenuation = pow(dir_diff, light.dropoff_rate);
+
+		PerRayData_shadow shadow_prd;
+		shadow_prd.attenuation = make_float3(1);
+
+		if(nDl > 0) {
+			optix::Ray shadow_ray = optix::make_Ray( fhp, L, shadow_ray_type, scene_epsilon, Ldist );
+			rtTrace(top_shadower, shadow_ray, shadow_prd);
+			prd_radiance.result += angle_attenuation * light.intensity * light.color * shadow_prd.attenuation 
+				* (kd * nDl + ks * max(pow(dot(H, normal), ns), .0f));
 		}
 	}
 
 	const int new_depth = prd_radiance.depth + 1;
 
-	if (new_depth > max_depth) {
+	if (new_depth > max_depth) { // max depth exceeded, stop further tracing
 		return;
 	}
 
-	float ambient_amount = float_vec_length(k_ambient);
-	float diffuse_amount = float_vec_length(k_diffuse);
-	float specular_amount = float_vec_length(k_specular);
-	float reflective_amount = float_vec_length(k_reflective);
-	float refractive_amount = float_vec_length(k_refractive);
-	float total_amount = ambient_amount + diffuse_amount 
-		+ specular_amount + reflective_amount + refractive_amount;
+	float diffuse_amount = length(kd);
+	float specular_amount = length(ks);
+	float reflective_amount = length(k_reflective);
+	float refractive_amount = length(alpha);
+	float total_amount = diffuse_amount + specular_amount 
+		+ reflective_amount + refractive_amount;
 
 	/* global illunimation */
 	float diffuse_importance = diffuse_amount / total_amount * prd_radiance.importance;
@@ -287,11 +321,12 @@ RT_PROGRAM void closest_hit_radiance()
 	if (!float_vec_zero(k_reflective) && reflective_importance > importance_cutoff) {
 
 		// reflection direction
-		const float3 refl = reflect(ray_dir, normal);
+		const float3 refl = reflect(ray.direction, normal);
 
 		// number of samples to take for each reflection
 		if (glossy_on) {
-			const int num_glossy_sample = 10;
+			// const int num_glossy_sample = 10;
+			const int num_glossy_sample = 1;
 			
 			for (int i = 0; i < num_glossy_sample; i++) {
 				float3 randomizedRefl = randomize_vector(refl, glossiness, seed);
@@ -299,7 +334,7 @@ RT_PROGRAM void closest_hit_radiance()
 					* TraceRay(fhp, randomizedRefl, new_depth, reflective_importance) / num_glossy_sample;
 			}
 		} else {
-			prd_radiance.result += reflective_importance * k_reflective 
+			prd_radiance.result += k_reflective 
 				* TraceRay(fhp, refl, new_depth, reflective_importance);
 		}
 	}
@@ -307,22 +342,29 @@ RT_PROGRAM void closest_hit_radiance()
 	/* refraction */
 	float refractive_importance = refractive_amount / total_amount * prd_radiance.importance;
 
-	if (!float_vec_zero(k_refractive) && refractive_importance > importance_cutoff) {
+	if (!float_vec_zero(alpha) && refractive_importance > importance_cutoff) {
+		// back hit point
+		const float3 bhp = rtTransformPoint(RT_OBJECT_TO_WORLD, back_hit_point);
 
 		float3 transmission_direction;
-		if (refract(transmission_direction, ray_dir, N, IOR)) {
+		if (refract(transmission_direction, ray.direction, normal, IOR)) {
 			// check whether it is internal or external refraction
-			float cos_theta = dot(ray_dir, normal);
+			/*
+			float cos_theta = dot(ray.direction, normal);
 			if (cos_theta < 0) { // external
 				cos_theta = - cos_theta;
 			} else { // internal
 				cos_theta = dot(transmission_direction, normal);
 			}
 
-			prd_radiance.result += refractive_importance * k_refractive 
-				* TraceRay(bhp, transmission_direction, new_depth, refractive_importance / 2);
+			float reflection = fresnel_schlick(cos_theta, 3, 0.1, 1);
+
+			float importance = prd_radiance.importance * (1.0f-reflection) * luminance( alpha );
+			*/
+
+			prd_radiance.result += alpha 
+				* TraceRay(bhp, ray.direction, new_depth, refractive_importance / 2);
 		}
 	}
 	
 }
-

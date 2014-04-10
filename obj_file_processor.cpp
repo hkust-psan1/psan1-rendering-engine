@@ -1,19 +1,41 @@
 #include "obj_file_processor.h"
 
+const float pinRadius = 0.44; // from the obj file
+const float pinDistance = 0.44 * 12 / (4.75 / 2); // 12 inches distance with 4.75 inches diameter
+const float unitX = pinDistance * 1.73205 / 2;
+const float unitZ = pinDistance / 2;
+
+const float3 pinBasePosition = make_float3(10, 0, 0);
+const float3 pinPositions[10] = {
+	make_float3(0, 0, 0) + pinBasePosition,
+	make_float3(unitX, 0, unitZ) + pinBasePosition,
+	make_float3(unitX, 0, - unitZ) + pinBasePosition,
+	make_float3(2 * unitX, 0, 2 * unitZ) + pinBasePosition,
+	make_float3(2 * unitX, 0, 0) + pinBasePosition,
+	make_float3(2 * unitX, 0, - 2 * unitZ) + pinBasePosition,
+	make_float3(3 * unitX, 0, - 3 * unitZ) + pinBasePosition,
+	make_float3(3 * unitX, 0, - 1 * unitZ) + pinBasePosition,
+	make_float3(3 * unitX, 0, 1 * unitZ) + pinBasePosition,
+	make_float3(3 * unitX, 0, 3 * unitZ) + pinBasePosition,
+};
+
 std::vector<SceneObject*> ObjFileProcessor::processObject(std::string filename, std::string targetDir) {
 	processObjFile(filename + ".obj", targetDir);
 	processMtlFile(filename + ".mtl", targetDir);
 
 	std::vector<SceneObject*> sceneObjects;
 
+	int pin_index = 0;
+
 	for (auto it = objMtlMap.begin(); it != objMtlMap.end(); it++) {
 		std::cout << "Processing object: " << it->first << std::endl;
 
 		SceneObject* so = new SceneObject();
-		so->initGraphics(targetDir + it->first, targetDir + it->second, targetDir);
+		so->initGraphics(targetDir + it->first, targetDir + it->second, targetDir + "textures/");
 		sceneObjects.push_back(so);
 
 		// used for the kitchen scene
+		/*
 		if (it->first.find("Suzanne") != std::string::npos) {
 			Collider* c = new Collider;
 			c->setMass(1);
@@ -25,6 +47,30 @@ std::vector<SceneObject*> ObjFileProcessor::processObject(std::string filename, 
 			c->setMass(0);
 			c->initPhysics(targetDir + it->first);
 			so->attachCollider(c);
+		}
+		*/
+
+		// used for the bowling scene
+		if (it->first.find("Pin") != std::string::npos) {
+			Collider* c = new Collider;
+			c->setMass(1);
+			c->initPhysics(targetDir + "../pin-phy.obj");
+			// c->setInitialPosition(btVector3(10, 0, 0));
+			float3 pos = pinPositions[pin_index++];
+			c->setInitialPosition(btVector3(pos.x, pos.y, pos.z));
+			so->attachCollider(c);
+		} else if (it->first.find("MainFloor") != std::string::npos) {
+			Collider* c = new Collider;
+			c->setMass(0);
+			c->initPhysics(targetDir + it->first);
+			so->attachCollider(c);
+		} else if (it->first.find("BowlingBall") != std::string::npos) {
+			SphereCollider* sc = new SphereCollider;
+			sc->setMass(5);
+			sc->initPhysics(1);
+			sc->setInitialPosition(btVector3(-10, 0, 0));
+			sc->getRigidBody()->setLinearVelocity(btVector3(10, 0, 0));
+			so->attachCollider(sc);
 		}
 	}
 

@@ -148,7 +148,7 @@ void Scene::doResize( unsigned int width, unsigned int height ) {
 void Scene::createContext( InitialCameraData& camera_data ) {
 	// Context
 	m_context->setEntryPointCount( 3 );
-	m_context->setRayTypeCount( 2 );
+	m_context->setRayTypeCount( 3 );
 	m_context->setStackSize( 4800 );
 
 	m_context["scene_epsilon"]->setFloat( 1.e-3f );
@@ -218,11 +218,10 @@ void Scene::createContext( InitialCameraData& camera_data ) {
 	m_context["up"]->setFloat( bg_up.x, bg_up.y, bg_up.z );
 	
 	// Set up camera
-	camera_data = InitialCameraData( make_float3( 30.0f, 15.0f, 7.5f ), // eye
-		make_float3( 7.0f, .0f, 7.0f ),		// lookat
-		make_float3( 0.0f, 1.0f, 0.0f ),		// up
-		45.0f );	// vfov
-	
+	camera_data = InitialCameraData( make_float3( 6.65, 1.45, -1.29 ), // eye
+		make_float3( 0.0, 1.45, 5 ),		// lookat
+		make_float3( 0.0, 1.0, 0.0 ),		// up
+		45.0 );	// vfov
 
 	// Declare camera variables. The values do not matter, they will be overwritten in trace.
 	m_context["eye"]->setFloat( make_float3( 0.0f, 0.0f, 0.0f ) );
@@ -285,16 +284,6 @@ void Scene::resetObjects() {
 		make_float3(3 * unitX, initY, 3 * unitZ) + pinBasePosition,
 	};
 
-	/*
-	for (int i = 0; i < pins.size(); i++) {
-		pins[i]->setInitialPosition(pinPositions[i]);
-		pins[i]->getRigidBody()->setLinearVelocity(btVector3(0, 0, 0));
-		pins[i]->getRigidBody()->setAngularVelocity(btVector3(0, 0, 0));
-	}
-
-	ball->setInitialPosition(make_float3(-10, 0, 0));
-	*/
-
 	world->stepSimulation(0.1, 1);
 }
 
@@ -311,37 +300,11 @@ void Scene::initObjects() {
 	SceneObject::context  = m_context;
 
 	std::vector<RectangleLight> areaLights;
+	std::vector<SpotLight> spotLights;
 
 	// process obj file
 	ObjFileProcessor ofp;
 	sceneObjects = ofp.processObject(m_obj_path + "interior", m_obj_path + "objs/");
-
-	/*
-	GroundPlane* groundPlane = new GroundPlane(m_context);
-	groundPlane->initGraphics(m_obj_path);
-	groundPlane->initPhysics(m_obj_path);
-	sceneObjects.push_back(groundPlane);
-
-	for (int i = 0; i < 1; i++) {
-		BowlingPin* pin = new BowlingPin(m_context);
-		pin->initGraphics(m_obj_path);
-		pin->initPhysics(m_obj_path);
-
-		sceneObjects.push_back(pin); 
-		pins.push_back(pin);
-	}
-
-	ball = new Ball(m_context);
-	ball->initGraphics(m_obj_path);
-	ball->initPhysics(m_obj_path);
-	sceneObjects.push_back(ball);
-	*/
-
-	/*
-	SceneObject* sphere = new SceneObject;
-	sphere->initGraphics(m_obj_path + "cubes.obj");
-	sceneObjects.push_back(sphere);
-	*/
 
 	btDbvtBroadphase* broadPhase = new btDbvtBroadphase();
 
@@ -351,29 +314,6 @@ void Scene::initObjects() {
 	btSequentialImpulseConstraintSolver* solver = new btSequentialImpulseConstraintSolver;
 
 	world = new btDiscreteDynamicsWorld(dispatcher, broadPhase, solver, collisionConfiguration);
-
-	// add a ground plane
-	/*
-	btCollisionShape* groundShape = new btBoxShape(btVector3(10, 1, 10));
-	btVector3 localInertia(0, 0, 0);
-	btTransform groundTransform;
-	groundTransform.setIdentity();
-	groundTransform.setOrigin(btVector3(0, 0, 0));
-	btDefaultMotionState* groundMotionState = new btDefaultMotionState(groundTransform);
-	btRigidBody::btRigidBodyConstructionInfo info(0, groundMotionState, groundShape, localInertia);
-	btRigidBody* groundBody = new btRigidBody(info);
-
-	world->addRigidBody(groundBody);
-	*/
-
-	/*
-	for (int i = 0; i < sceneObjects.size(); i++) {
-		PhysicalObject* po = dynamic_cast<PhysicalObject*>(sceneObjects[i]);
-		if (po) {
-			world->addRigidBody(po->getRigidBody());
-		}
-	}
-	*/
 
 	for (int i = 0; i < sceneObjects.size(); i++) {
 		SceneObject* so = sceneObjects[i];
@@ -409,6 +349,29 @@ void Scene::initObjects() {
 		memcpy(areaLightBuffer->map(), areaLightArray, sizeof(RectangleLight) * areaLights.size());
 		areaLightBuffer->unmap();
 		m_context["area_lights"]->set(areaLightBuffer);
+	}
+
+	SpotLight sl1 = {
+		make_float3(2.56, 3.74, 2.89), // position
+		make_float3(1, 1, 1), // color
+		make_float3(0, -1, 0), // direction
+		120 / 57.3 / 2, // angle
+		6, // intensity
+		20 // dropoff rate
+	};
+
+	spotLights.push_back(sl1);
+
+	// add spot lights to the scene
+	if (!spotLights.empty()) {
+		SpotLight* spotLightArray = &spotLights[0];
+		Buffer spotLightBuffer = m_context->createBuffer(RT_BUFFER_INPUT);
+		spotLightBuffer->setFormat(RT_FORMAT_USER);
+		spotLightBuffer->setElementSize(sizeof(SpotLight));
+		spotLightBuffer->setSize(spotLights.size());
+		memcpy(spotLightBuffer->map(), spotLightArray, sizeof(SpotLight) * spotLights.size());
+		spotLightBuffer->unmap();
+		m_context["spot_lights"]->set(spotLightBuffer);
 	}
 }
 

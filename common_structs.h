@@ -44,11 +44,25 @@ struct TriangleLight
   float3 emission;
 };
 
-typedef struct struct_RectangleLight
+struct SpotLight
+{
+#if defined(__cplusplus)
+  typedef optix::float3 float3;
+#endif
+  float3 pos;
+  float3 color;
+  float3 direction;
+  float angle;
+  float intensity;
+  float dropoff_rate;
+};
+
+struct RectangleLight
 {
 #if defined(__cplusplus)
   typedef optix::float3 float3;
 #endif
   float3 pos, r1, r2;
   float3 color;
-} RectangleLight;
+  float intensity;
+};
