@@ -36,6 +36,7 @@ SceneObject::SceneObject() {
 	m_ks = make_float3(0);
 	m_krefl = make_float3(0);
 	m_alpha = make_float3(0);
+	m_ss = make_float3(0);
 	m_ns = 10;
 	m_glossiness = 0;
 	
@@ -106,7 +107,6 @@ void SceneObject::initGraphics(std::string obj_path, std::string mtl_path, std::
 	m_transform = context->createTransform();
 	m_transform->setChild(group);
 
-	// used for the kitchen scene
 	/*
 	if (obj_path.find("Wall") != std::string::npos) {
 		m_diffuseMapFilename = "brick_COLOR.ppm";
@@ -145,26 +145,100 @@ void SceneObject::initGraphics(std::string obj_path, std::string mtl_path, std::
 	}
 	*/
 
-	// used for the dining room scene
+	Shader diffuseShader;
+	diffuseShader.type = 1;
+	diffuseShader.color_type = 0;
 
+	/*
+	// used for the kitchen scene
+	if (obj_path.find("MainLightSource") != std::string::npos) {
+		m_ke = make_float3(1);
+		m_intensity = 3;
+		m_emissive = true;
+	} else if (obj_path.find("BalconyLightSource") != std::string::npos) {
+		m_ke = make_float3(0.25, 0.63, 0.80);
+		m_intensity = 1;
+		m_emissive = true;
+	} else if (obj_path.find("MainStructure") != std::string::npos) {
+		m_kd = make_float3(0.9);
+		diffuseShader.color = make_float3(0.9);
+	} else if (obj_path.find("BackWall") != std::string::npos) {
+		m_kd = make_float3(1);
+		m_krefl = make_float3(0.1);
+	} else if (obj_path.find("WindowFrame") != std::string::npos) {
+		m_kd = make_float3(0.8);
+		m_krefl = make_float3(0.5);
+		m_glossiness = 0.4;
+	} else if (obj_path.find("WindowGlass") != std::string::npos) {
+		m_krefl = make_float3(0.2);
+		m_alpha = make_float3(0.9);
+	} else if (obj_path.find("Floor") != std::string::npos) {
+		m_diffuseMapFilename = "wood_floor_interior_2.ppm";
+	} else if (obj_path.find("TableFrame") != std::string::npos) {
+		m_kd = make_float3(1);
+	} else if (obj_path.find("TableTop") != std::string::npos) {
+		m_kd = make_float3(0.1);
+		m_krefl = make_float3(0.6);
+		m_glossiness = 0.1;
+	} else if (obj_path.find("ChairFrame") != std::string::npos) {
+		m_kd = make_float3(1);
+	} else if (obj_path.find("ChairTop") != std::string::npos) {
+		m_kd = make_float3(0.1);
+		m_krefl = make_float3(0.6);
+		m_glossiness = 0.1;
+	} else if (obj_path.find("Cabinet") != std::string::npos) {
+		m_diffuseMapFilename = "drawer_front_color.ppm";
+		m_specularMapFilename = "drawer_front_spec.ppm";
+	} else if (obj_path.find("PlantLeaves") != std::string::npos) {
+		m_kd = make_float3(0.6, 0.9, 0.2);
+		m_ss = make_float3(0.6, 0.9, 0.2);
+	} else if (obj_path.find("FlowerPot") != std::string::npos) {
+		m_kd = make_float3(1);
+	} else if (obj_path.find("Plates") != std::string::npos) {
+		m_kd = make_float3(1);
+	} else if (obj_path.find("Bowls") != std::string::npos) {
+		m_kd = make_float3(1);
+	} else if (obj_path.find("Bottles") != std::string::npos) {
+		m_krefl = make_float3(0.3);
+		m_alpha = make_float3(0.7);
+	} else if (obj_path.find("MetalContainer") != std::string::npos) {
+		m_krefl = make_float3(0.8);
+	} else if (obj_path.find("LampCover") != std::string::npos) {
+		m_kd = make_float3(1);
+	} else if (obj_path.find("WaterFaucet") != std::string::npos) {
+		m_krefl = make_float3(0.8);
+		m_glossiness = 0.02;
+	}
+	*/
+
+	// used for the dining room scene
+	/*
 	if (obj_path.find("HungLightSource") != std::string::npos) {
 		m_ke = make_float3(1, 0.9, 0.8);
-		m_intensity = 0.4;
+		m_intensity = 1.0;
 		m_emissive = true;
 	} else if (obj_path.find("SideRoofLight") != std::string::npos) {
 		m_ke = make_float3(1, 0.95, 0.75);
-		m_intensity = 1.5;
+		m_intensity = 3.0;
 		m_emissive = true;
 	} else if (obj_path.find("MiddleRoofLight") != std::string::npos) {
 		m_ke = make_float3(1, 0.95, 0.75);
-		m_intensity = 0.8;
+		m_intensity = 25;
+		m_emissive = true;
+	} else if (obj_path.find("OuterLight") != std::string::npos) {
+		m_ke = make_float3(1);
+		m_intensity = 12;
 		m_emissive = true;
 	} else if (obj_path.find("MainFloor") != std::string::npos) {
 		m_diffuseMapFilename = "wood_plank_COLOR.ppm";
 		m_normalMapFilename = "wood_plank_NRM.ppm";
 		m_specularMapFilename = "wood_plank_SPEC.ppm";
-	} else if (obj_path.find("Chair") != std::string::npos) {
-		m_kd = make_float3(0.9);
+	} else if (obj_path.find("ChairFrame") != std::string::npos) {
+		m_kd = make_float3(1.0);
+	} else if (obj_path.find("ChairTop") != std::string::npos) {
+		m_kd = make_float3(0);
+		m_krefl = make_float3(0.2);
+		m_glossiness = 0.1;
 	} else if (obj_path.find("MainStructure") != std::string::npos) {
 		m_kd = make_float3(1);
 	} else if (obj_path.find("CabinetBody") != std::string::npos) {
@@ -203,13 +277,16 @@ void SceneObject::initGraphics(std::string obj_path, std::string mtl_path, std::
 		m_alpha = make_float3(0.7);
 		m_krefl = make_float3(0.5);
 	} else if (obj_path.find("TablePillar") != std::string::npos) {
-		m_kd = make_float3(0.7);
+		m_kd = make_float3(0.1);
+		m_krefl = make_float3(0.6);
+		m_glossiness = 0.03;
 	}
+	*/
 
 	// used for the bowling scene
-	/*
 	if (obj_path.find("SideLight") != std::string::npos) {
 		m_ke = make_float3(1);
+		m_intensity = 15;
 		m_emissive = true;
 	} else if (obj_path.find("Pin") != std::string::npos) {
 		m_diffuseMapFilename = "pin-diffuse.ppm";
@@ -221,6 +298,38 @@ void SceneObject::initGraphics(std::string obj_path, std::string mtl_path, std::
 		m_diffuseMapFilename = "wood_floor.ppm";
 		m_krefl = make_float3(0.4);
 	}
+
+	// used for testing ss
+	/*(
+	if (obj_path.find("Light") != std::string::npos) {
+		m_ke = make_float3(1);
+		m_intensity = 3;
+		m_emissive = true;
+	} else if (obj_path.find("SS_body") != std::string::npos) {
+		m_kd = make_float3(1, 0.5, 0.5);
+		m_ss = make_float3(1, 0.5, 0.5);
+	}
+	*/
+
+	std::vector<Shader> shaders;
+	shaders.push_back(diffuseShader);
+
+	Buffer shader_buffer = context->createBuffer(RT_BUFFER_INPUT);
+	shader_buffer->setFormat(RT_FORMAT_USER);
+	shader_buffer->setElementSize(sizeof(Shader));
+	shader_buffer->setSize(shaders.size());
+	memcpy(shader_buffer->map(), &shaders[0], sizeof(Shader) * shaders.size());
+	shader_buffer->unmap();
+	mat["shaders"]->set(shader_buffer);
+
+	/*
+	Buffer areaLightBuffer = m_context->createBuffer(RT_BUFFER_INPUT);
+	areaLightBuffer->setFormat(RT_FORMAT_USER);
+	areaLightBuffer->setElementSize(sizeof(RectangleLight));
+	areaLightBuffer->setSize(areaLights.size());
+	memcpy(areaLightBuffer->map(), areaLightArray, sizeof(RectangleLight) * areaLights.size());
+	areaLightBuffer->unmap();
+	m_context["area_lights"]->set(areaLightBuffer);
 	*/
 
 	mat["is_emissive"]->setInt(m_emissive);
@@ -230,6 +339,7 @@ void SceneObject::initGraphics(std::string obj_path, std::string mtl_path, std::
 	mat["k_specular"]->setFloat(m_ks);
 	mat["k_reflective"]->setFloat(m_krefl);
 	mat["alpha"]->setFloat(m_alpha);
+	mat["subsurf_scatter_color"]->setFloat(m_ss);
 	mat["ns"]->setInt(m_ns);
 	mat["glossiness"]->setFloat(m_glossiness);
 

@@ -40,6 +40,7 @@ Buffer Scene::getOutputBuffer() {
 }
 
 void Scene::trace(const RayGenCameraData& camera_data) {
+	m_camera_changed = true;
 	if (m_new_frame) {
 		m_new_frame = false;
 
@@ -218,8 +219,17 @@ void Scene::createContext( InitialCameraData& camera_data ) {
 	m_context["up"]->setFloat( bg_up.x, bg_up.y, bg_up.z );
 	
 	// Set up camera
+	/*
+	// for the dining room scene
 	camera_data = InitialCameraData( make_float3( 6.65, 1.45, -1.29 ), // eye
 		make_float3( 0.0, 1.45, 5 ),		// lookat
+		make_float3( 0.0, 1.0, 0.0 ),		// up
+		45.0 );	// vfov
+		*/
+
+	// for the kitchen scene
+	camera_data = InitialCameraData( make_float3( 9.0, 2.93, -0.15 ), // eye
+		make_float3( 0.0, 2.93, 0.0 ),		// lookat
 		make_float3( 0.0, 1.0, 0.0 ),		// up
 		45.0 );	// vfov
 
@@ -299,12 +309,10 @@ void Scene::initObjects() {
 
 	SceneObject::context  = m_context;
 
-	std::vector<RectangleLight> areaLights;
-	std::vector<SpotLight> spotLights;
-
 	// process obj file
 	ObjFileProcessor ofp;
-	sceneObjects = ofp.processObject(m_obj_path + "interior", m_obj_path + "objs/");
+	// sceneObjects = ofp.processObject(m_obj_path + "interior2", m_obj_path + "objs/");
+	sceneObjects = ofp.processObject(m_obj_path + "bowling", m_obj_path + "objs/");
 
 	btDbvtBroadphase* broadPhase = new btDbvtBroadphase();
 
@@ -326,6 +334,15 @@ void Scene::initObjects() {
 	g = m_context->createGroup();
 	g->setChildCount(sceneObjects.size());
 
+	g->setAcceleration(m_context->createAcceleration("Bvh", "Bvh"));
+
+	m_context["top_object"]->set(g);
+	m_context["top_shadower"]->set(g);
+
+	std::vector<RectangleLight> areaLights;
+	std::vector<SpotLight> spotLights;
+	std::vector<DirectionalLight> directionalLights;
+
 	for (int i = 0; i < sceneObjects.size(); i++) {
 		SceneObject* so = sceneObjects[i];
 		if (so->m_emissive) {
@@ -334,45 +351,66 @@ void Scene::initObjects() {
 		g->setChild<Transform>(i, so->getTransform());
 	}
 
-	g->setAcceleration(m_context->createAcceleration("Bvh", "Bvh"));
-
-	m_context["top_object"]->set(g);
-	m_context["top_shadower"]->set(g);
-
 	// add area lights to the scene
+	RectangleLight* areaLightArray = NULL;
 	if (!areaLights.empty()) {
-		RectangleLight* areaLightArray = &areaLights[0];
-		Buffer areaLightBuffer = m_context->createBuffer(RT_BUFFER_INPUT);
-		areaLightBuffer->setFormat(RT_FORMAT_USER);
-		areaLightBuffer->setElementSize(sizeof(RectangleLight));
-		areaLightBuffer->setSize(areaLights.size());
-		memcpy(areaLightBuffer->map(), areaLightArray, sizeof(RectangleLight) * areaLights.size());
-		areaLightBuffer->unmap();
-		m_context["area_lights"]->set(areaLightBuffer);
+		areaLightArray = &areaLights[0];
 	}
 
+	Buffer areaLightBuffer = m_context->createBuffer(RT_BUFFER_INPUT);
+	areaLightBuffer->setFormat(RT_FORMAT_USER);
+	areaLightBuffer->setElementSize(sizeof(RectangleLight));
+	areaLightBuffer->setSize(areaLights.size());
+	memcpy(areaLightBuffer->map(), areaLightArray, sizeof(RectangleLight) * areaLights.size());
+	areaLightBuffer->unmap();
+	m_context["area_lights"]->set(areaLightBuffer);
+
 	SpotLight sl1 = {
-		make_float3(2.56, 3.74, 2.89), // position
+		make_float3(2.56, 3.76, 2.89), // position
 		make_float3(1, 1, 1), // color
 		make_float3(0, -1, 0), // direction
 		120 / 57.3 / 2, // angle
-		6, // intensity
-		20 // dropoff rate
+		10, // intensity
+		8 // dropoff rate
 	};
 
-	spotLights.push_back(sl1);
+	// spotLights.push_back(sl1);
 
 	// add spot lights to the scene
+	SpotLight* spotLightArray = NULL;
 	if (!spotLights.empty()) {
-		SpotLight* spotLightArray = &spotLights[0];
-		Buffer spotLightBuffer = m_context->createBuffer(RT_BUFFER_INPUT);
-		spotLightBuffer->setFormat(RT_FORMAT_USER);
-		spotLightBuffer->setElementSize(sizeof(SpotLight));
-		spotLightBuffer->setSize(spotLights.size());
-		memcpy(spotLightBuffer->map(), spotLightArray, sizeof(SpotLight) * spotLights.size());
-		spotLightBuffer->unmap();
-		m_context["spot_lights"]->set(spotLightBuffer);
+		spotLightArray = &spotLights[0];
 	}
+
+	Buffer spotLightBuffer = m_context->createBuffer(RT_BUFFER_INPUT);
+	spotLightBuffer->setFormat(RT_FORMAT_USER);
+	spotLightBuffer->setElementSize(sizeof(SpotLight));
+	spotLightBuffer->setSize(spotLights.size());
+	memcpy(spotLightBuffer->map(), spotLightArray, sizeof(SpotLight) * spotLights.size());
+	spotLightBuffer->unmap();
+	m_context["spot_lights"]->set(spotLightBuffer);
+	
+	DirectionalLight dl1 = {
+		make_float3(5, -3, 0), // direction
+		make_float3(1, 1, 1), // color
+		1 // intensity
+	};
+
+	// directionalLights.push_back(dl1);
+
+	// add directional lights to the scene
+	DirectionalLight* directionalLightArray = NULL;
+	if (!directionalLights.empty()) {
+		directionalLightArray = &directionalLights[0];
+	}
+
+	Buffer directionalLightBuffer = m_context->createBuffer(RT_BUFFER_INPUT);
+	directionalLightBuffer->setFormat(RT_FORMAT_USER);
+	directionalLightBuffer->setElementSize(sizeof(DirectionalLight));
+	directionalLightBuffer->setSize(directionalLights.size());
+	memcpy(directionalLightBuffer->map(), directionalLightArray, sizeof(DirectionalLight) * directionalLights.size());
+	directionalLightBuffer->unmap();
+	m_context["directional_lights"]->set(directionalLightBuffer);
 }
 
 void Scene::makeMaterialPrograms( Material material, const char *filename, 

@@ -30,6 +30,8 @@ Fl_Light_Button* GUIControl::aaLightButton;
 Fl_Light_Button* GUIControl::motionBlurLightButton;
 Fl_Light_Button* GUIControl::giLightButton;
 
+Fl_Button* GUIControl::cameraChangeButton;
+
 void GUIControl::startButtonPressed() {
 	if (!scene) {
 		return;
@@ -147,6 +149,12 @@ void GUIControl::giLightButtonPressed() {
 	giOn = !giOn;
 }
 
+void GUIControl::cameraChangeButtonPressed() {
+	scene->m_camera_type = (scene->m_camera_type + 1) % 3;
+	scene->m_camera_changed = true;
+	printf("new camera type: %d\n", scene->m_camera_type);
+}
+
 void GUIControl::showControlDialog() {
 	Fl_Window* window = new Fl_Window(300, 600);
 
@@ -199,6 +207,9 @@ void GUIControl::showControlDialog() {
 
 	giLightButton = new Fl_Light_Button(0, 500, 300, 30, "global illumination");
 	giLightButton->callback((Fl_Callback*) giLightButtonPressed);
+
+	cameraChangeButton = new Fl_Button(0, 540, 300, 30, "change camera type");
+	cameraChangeButton->callback((Fl_Callback*) cameraChangeButtonPressed);
 
 	window->end();
 	window->show();

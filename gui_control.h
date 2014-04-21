@@ -27,6 +27,7 @@ public:
 	static void aaLightButtonPressed();
 	static void motionBlurLightButtonPressed();
 	static void giLightButtonPressed();
+	static void cameraChangeButtonPressed();
 
 	static Scene* scene;
 
@@ -61,6 +62,8 @@ public:
 	static Fl_Light_Button* aaLightButton;
 	static Fl_Light_Button* motionBlurLightButton;
 	static Fl_Light_Button* giLightButton;
+
+	static Fl_Button* cameraChangeButton;
 };
 
 #endif

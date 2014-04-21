@@ -34,16 +34,6 @@ typedef struct struct_BasicLight
   int    padding;      // make this structure 32 bytes -- powers of two are your friend!
 } BasicLight;
 
-struct TriangleLight
-{
-#if defined(__cplusplus)
-  typedef optix::float3 float3;
-#endif
-  float3 v1, v2, v3;
-  float3 normal;
-  float3 emission;
-};
-
 struct SpotLight
 {
 #if defined(__cplusplus)
@@ -66,3 +56,61 @@ struct RectangleLight
   float3 color;
   float intensity;
 };
+
+struct DirectionalLight
+{
+#if defined(__cplusplus)
+  typedef optix::float3 float3;
+#endif
+  float3 direction;
+  float3 color;
+  float intensity;
+};
+
+struct Shader
+{
+#if defined(__cplusplus)
+	typedef optix::float3 float3;
+#endif
+	int type;
+	float weight;
+	int color_type;
+	float3 color;
+	float glossiness;
+	float IOR;
+};
+
+enum ShaderType {
+	EMISSION,
+	DIFFUSE,
+	GLOSSY,
+	GLASS
+};
+
+enum ColorType {
+};
+
+/*
+class Node {
+};
+
+class OutputNode : public Node {
+	ShaderNode* input;
+};
+
+class ShaderNode : public Node {
+	OutputNode* output;
+};
+
+class MixNode : public OutputNode {
+	ShaderNode* input2;
+	float fac;
+};
+
+class ColorNode : public Node {
+	ShaderNode* output;
+};
+
+class TextureNode : public ColorNode {
+};
+*/

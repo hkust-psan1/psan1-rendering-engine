@@ -43,6 +43,7 @@ public:
 	float3 m_ks;
 	float3 m_krefl;
 	float3 m_alpha;
+	float3 m_ss;
 	float m_ns;
 	float m_glossiness;
 	float m_intensity;

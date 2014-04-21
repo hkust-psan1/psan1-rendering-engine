@@ -53,7 +53,8 @@ public:
 
 	int m_dof_sample_num;
 
-private:
+	int m_camera_type;
+
 	void createContext( SampleScene::InitialCameraData& camera_data );
 	void createMaterials(Material material[] );
 
@@ -74,7 +75,6 @@ private:
 
 	Buffer m_rnd_seeds;
 	unsigned int m_frame_number;
-	int m_camera_type;
 
 	float distance_offset;
 
