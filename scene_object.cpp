@@ -304,6 +304,7 @@ void SceneObject::initGraphics(std::string obj_path, std::string mtl_path, std::
 	*/
 
 	// used for the throw scene
+	/*
 	if (obj_path.find("TopLight") != std::string::npos) {
 		m_ke = make_float3(1);
 		m_intensity = 8;
@@ -321,18 +322,17 @@ void SceneObject::initGraphics(std::string obj_path, std::string mtl_path, std::
 	} else if (obj_path.find("Sphere") != std::string::npos) {
 		m_kd = make_float3(1, 0.4, 0.4);
 	}
+	*/
 
 	// used for testing ss
-	/*
 	if (obj_path.find("Light") != std::string::npos) {
 		m_ke = make_float3(1);
 		m_intensity = 3;
 		m_emissive = true;
 	} else if (obj_path.find("SS_body") != std::string::npos) {
-		m_kd = make_float3(1, 0.5, 0.5);
-		m_ss = make_float3(1, 0.5, 0.5);
+		m_kd = make_float3(0.3, 0.25, 0.05);
+		m_ss = make_float3(0.9, 0.3, 0);
 	}
-	*/
 
 	std::vector<Shader> shaders;
 	shaders.push_back(diffuseShader);

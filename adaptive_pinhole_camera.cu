@@ -31,7 +31,13 @@ struct PerRayData_radiance
   float3 result;
   float importance;
   int depth;
+  int ss;
 };
+
+rtDeclareVariable(int, dof_on, ,) = false;
+rtDeclareVariable(float, aperture_radius, , );
+rtDeclareVariable(float, focal_scale, , );
+rtDeclareVariable(uint2, launch_dim, rtLaunchDim, );
 
 rtDeclareVariable(unsigned int,  frame_number, , );
 rtDeclareVariable(float3,        eye, , );
@@ -89,12 +95,21 @@ static __device__ __inline__ float3 trace( float2 screen_coord )
   float2 d = screen_coord / make_float2(screen) * 2.f - 1.f;
   float3 ray_origin = eye;
   float3 ray_direction = normalize(d.x*U + d.y*V + W);
+
+  if (dof_on) {
+	  unsigned int seed = tea<16>(launch_index.y * launch_dim.x + launch_index.x, launch_index.y + frame_number);;
+	  float3 ray_target = ray_origin + focal_scale * ray_direction;
+	  float2 sample = square_to_disk(make_float2(rnd(seed), rnd(seed)));
+	  ray_origin += 0.1 * (sample.x * normalize(U) + sample.y * normalize(V));
+	  ray_direction = ray_target - ray_origin;
+  }
   
   optix::Ray ray = optix::make_Ray(ray_origin, ray_direction, radiance_ray_type, scene_epsilon, RT_DEFAULT_MAX);
 
   PerRayData_radiance prd;
   prd.importance = 1.f;
   prd.depth = 0;
+  prd.ss = false;
 
   rtTrace(top_object, ray, prd);
   return prd.result;

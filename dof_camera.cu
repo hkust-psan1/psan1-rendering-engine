@@ -22,6 +22,7 @@
 #include <optix.h>
 #include <optixu/optixu_math_namespace.h>
 
+#include "random.h"
 #include "helpers.h"
 
 using namespace optix;
@@ -32,6 +33,9 @@ struct PerRayData_radiance
   float importance;
   int depth;
 };
+
+rtDeclareVariable(int, dof_on, ,) = false;
+
 
 rtDeclareVariable(float3,        eye, , ) = { 1.0f, 0.0f, 0.0f };
 rtDeclareVariable(float3,        U, , )   = { 0.0f, 1.0f, 0.0f };
@@ -45,6 +49,7 @@ rtDeclareVariable(unsigned int,  radiance_ray_type, , );
 rtBuffer<float4, 2>              output_buffer;
 
 rtDeclareVariable(uint2, launch_index, rtLaunchIndex, );
+rtDeclareVariable(uint2, launch_dim, rtLaunchDim, );
 rtDeclareVariable(float, time_view_scale, , ) = 1e-6f;
 
 rtDeclareVariable(float, aperture_radius, , );
@@ -74,6 +79,8 @@ RT_PROGRAM void dof_camera()
 #ifdef TIME_VIEW
   clock_t t0 = clock(); 
 #endif
+  unsigned int seed = tea<16>(launch_index.y * launch_dim.x + launch_index.x, launch_index.y + frame_number);;
+
   size_t2 screen = output_buffer.size();
 
   // pixel sampling
@@ -86,9 +93,19 @@ RT_PROGRAM void dof_camera()
   float3 ray_target = ray_origin + focal_scale * ray_direction;
 
   // lens sampling
-  float2 sample = optix::square_to_disk(make_float2(jitter.z, jitter.w));
-  ray_origin = ray_origin + aperture_radius * ( sample.x * normalize( U ) +  sample.y * normalize( V ) );
+  float2 sample = square_to_disk(make_float2(rnd(seed), rnd(seed)));
+  // float2 sample = optix::square_to_disk(make_float2(jitter.z, jitter.w));
+  ray_origin += aperture_radius * ( sample.x * normalize( U ) +  sample.y * normalize( V ) );
   ray_direction = normalize(ray_target - ray_origin);
+
+  /*
+  if (dof_on) {
+	float3 ray_target = ray_origin + focal_scale * ray_direction;
+	float2 sample = square_to_disk(make_float2(rnd(seed), rnd(seed)));
+	ray_origin += 0.1 * (sample.x * normalize(U) + sample.y * normalize(V));
+	ray_direction = ray_target - ray_origin;
+  }
+  */
 
   // shoot ray
   optix::Ray ray = optix::make_Ray(ray_origin, ray_direction, radiance_ray_type, scene_epsilon, RT_DEFAULT_MAX);
