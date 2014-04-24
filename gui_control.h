@@ -28,6 +28,7 @@ public:
 	static void motionBlurLightButtonPressed();
 	static void giLightButtonPressed();
 	static void cameraChangeButtonPressed();
+	static void samplesPerFrameChanged();
 
 	static Scene* scene;
 
@@ -64,6 +65,8 @@ public:
 	static Fl_Light_Button* giLightButton;
 
 	static Fl_Button* cameraChangeButton;
+
+	static Fl_Value_Slider* samplesPerFrameSlider;
 };
 
 #endif

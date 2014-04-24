@@ -16,6 +16,8 @@ Scene::Scene( const std::string& obj_path, int camera_type )
 	m_dof_sample_num = 0;
 
 	m_taking_snapshot = false;
+
+	samplesPerFrame = 20;
 }
 
 void Scene::initScene( InitialCameraData& camera_data ) {
@@ -40,26 +42,8 @@ Buffer Scene::getOutputBuffer() {
 }
 
 void Scene::trace(const RayGenCameraData& camera_data) {
-	m_camera_changed = true;
 	if (m_new_frame) {
 		m_new_frame = false;
-
-		if (GUIControl::onAnimation) { // when animation is on, step simulation
-			world->stepSimulation(1 / 100.f, 10);
-		}
-
-		// re-position objects according to simulation result
-		for (int i = 0; i < sceneObjects.size(); i++) {
-			SceneObject* so = sceneObjects[i];
-			Collider* c = so->getCollider();
-
-			if (c) {
-				c->step();
-			}
-		}
-
-		// mark acceleration structure dirty
-		g->getAcceleration()->markDirty();
 	}
 
 	/* Optix rendering settings */
@@ -135,6 +119,62 @@ void Scene::trace(const RayGenCameraData& camera_data) {
 	if (m_new_frame && m_taking_snapshot) {
 		m_taking_snapshot = false;
 		GUIControl::snapShotButton->activate();
+	}
+
+	if (m_frame_number == samplesPerFrame)
+	{
+		if (GUIControl::onAnimation) 
+		{ // when animation is on, step simulation
+			world->stepSimulation(1 / 100.f, 10);
+		}
+
+		// re-position objects according to simulation result
+		for (int i = 0; i < sceneObjects.size(); i++) 
+		{
+			SceneObject* so = sceneObjects[i];
+			Collider* c = so->getCollider();
+
+			if (c) 
+			{
+				c->step();
+			}
+		}
+
+		// mark acceleration structure dirty
+		g->getAcceleration()->markDirty();
+
+		//reset
+		m_camera_changed = true;
+
+		//write picture
+		cv::Mat img(WIDTH, HEIGHT, cv::DataType<cv::Vec3b>::type);
+
+		writer << img;
+		printf("hi");
+
+		/*
+		std::vector<unsigned char> pix(WIDTH * HEIGHT * 3);
+		Buffer buffer = m_context["output_buffer"]->getBuffer(); 
+		float* src = (float*)(&buffer);
+				
+		printf("hey");
+		for (unsigned int i = 0u; i < WIDTH; i++)
+		{			
+			for (unsigned int j = 0u; j < HEIGHT; j++)
+			{
+				//float r = *(src++);
+				//float g= *(src++);
+				//float b = *(src++);
+				//src++;
+				//unsigned int R = r < 0 ? 0 : r > 0xff ? 0xff : r;
+				//unsigned int G = g < 0 ? 0 : g > 0xff ? 0xff : g;
+				//unsigned int B = b < 0 ? 0 : b > 0xff ? 0xff : b;
+				img.at<cv::Vec3b>(i, j) = cv::Vec3b(i % 256, j % 256, (i * j) % 256);
+			}
+		}
+		*/
+		
+		
 	}
 }
 
@@ -219,19 +259,21 @@ void Scene::createContext( InitialCameraData& camera_data ) {
 	m_context["up"]->setFloat( bg_up.x, bg_up.y, bg_up.z );
 	
 	// Set up camera
-	/*
+
 	// for the dining room scene
 	camera_data = InitialCameraData( make_float3( 6.65, 1.45, -1.29 ), // eye
 		make_float3( 0.0, 1.45, 5 ),		// lookat
 		make_float3( 0.0, 1.0, 0.0 ),		// up
 		45.0 );	// vfov
-		*/
+
 
 	// for the kitchen scene
+	/*
 	camera_data = InitialCameraData( make_float3( 9.0, 2.93, -0.15 ), // eye
 		make_float3( 0.0, 2.93, 0.0 ),		// lookat
 		make_float3( 0.0, 1.0, 0.0 ),		// up
 		45.0 );	// vfov
+		*/
 
 	// Declare camera variables. The values do not matter, they will be overwritten in trace.
 	m_context["eye"]->setFloat( make_float3( 0.0f, 0.0f, 0.0f ) );
@@ -272,7 +314,8 @@ void Scene::genRndSeeds( unsigned int width, unsigned int height ) {
 	m_rnd_seeds->unmap();
 }
 
-void Scene::resetObjects() {
+void Scene::resetObjects() 
+{
 	const float pinRadius = 0.44; // from the obj file
 	const float pinDistance = 0.44 * 12 / (4.75 / 2); // 12 inches distance with 4.75 inches diameter
 	const float unitX = pinDistance * 1.73205 / 2;
@@ -297,7 +340,17 @@ void Scene::resetObjects() {
 	world->stepSimulation(0.1, 1);
 }
 
-void Scene::initObjects() {
+void Scene::initObjects() 
+{
+	std::string filename = "D:\\tracer_output.avi";
+	const int format = CV_FOURCC('M', 'P', '4', '2');
+
+	writer.open(filename, format, 10, cv::Size(WIDTH, HEIGHT), true);
+	if (!writer.isOpened())
+    {
+        assert(false);
+    }
+
 	std::string prog_path = ptxpath("tracer", "triangle_mesh_iterative.cu");
 	std::string mat_path = ptxpath("tracer", "phong.cu");
 
@@ -311,8 +364,7 @@ void Scene::initObjects() {
 
 	// process obj file
 	ObjFileProcessor ofp;
-	// sceneObjects = ofp.processObject(m_obj_path + "interior2", m_obj_path + "objs/");
-	sceneObjects = ofp.processObject(m_obj_path + "bowling", m_obj_path + "objs/");
+	sceneObjects = ofp.processObject(m_obj_path + "throw", m_obj_path + "objs/");
 
 	btDbvtBroadphase* broadPhase = new btDbvtBroadphase();
 
@@ -367,14 +419,14 @@ void Scene::initObjects() {
 
 	SpotLight sl1 = {
 		make_float3(2.56, 3.76, 2.89), // position
-		make_float3(1, 1, 1), // color
+		make_float3(1, 0.95, 0.8), // color
 		make_float3(0, -1, 0), // direction
 		120 / 57.3 / 2, // angle
-		10, // intensity
+		4, // intensity
 		8 // dropoff rate
 	};
 
-	// spotLights.push_back(sl1);
+	spotLights.push_back(sl1);
 
 	// add spot lights to the scene
 	SpotLight* spotLightArray = NULL;
@@ -411,6 +463,7 @@ void Scene::initObjects() {
 	memcpy(directionalLightBuffer->map(), directionalLightArray, sizeof(DirectionalLight) * directionalLights.size());
 	directionalLightBuffer->unmap();
 	m_context["directional_lights"]->set(directionalLightBuffer);
+	
 }
 
 void Scene::makeMaterialPrograms( Material material, const char *filename, 

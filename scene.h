@@ -11,6 +11,9 @@
 #include <optixu/optixu_math_namespace.h>
 #include <optixu/optixu_matrix_namespace.h>
 
+#include <opencv/cv.h>
+#include <opencv/highgui.h>
+
 #include <ImageLoader.h>
 #include <GLUTDisplay.h>
 #include <ObjLoader.h>
@@ -80,10 +83,14 @@ public:
 
 	static unsigned int WIDTH;
 	static unsigned int HEIGHT;
+	
+	cv::VideoWriter writer;
 
 	Group g;
 
 	int currSampleInFrame;
+
+	int samplesPerFrame;
 };
 
 #endif

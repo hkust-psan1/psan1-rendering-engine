@@ -149,15 +149,15 @@ void SceneObject::initGraphics(std::string obj_path, std::string mtl_path, std::
 	diffuseShader.type = 1;
 	diffuseShader.color_type = 0;
 
-	/*
 	// used for the kitchen scene
+	/*
 	if (obj_path.find("MainLightSource") != std::string::npos) {
 		m_ke = make_float3(1);
 		m_intensity = 3;
 		m_emissive = true;
 	} else if (obj_path.find("BalconyLightSource") != std::string::npos) {
 		m_ke = make_float3(0.25, 0.63, 0.80);
-		m_intensity = 1;
+		m_intensity = 3;
 		m_emissive = true;
 	} else if (obj_path.find("MainStructure") != std::string::npos) {
 		m_kd = make_float3(0.9);
@@ -208,31 +208,35 @@ void SceneObject::initGraphics(std::string obj_path, std::string mtl_path, std::
 	} else if (obj_path.find("WaterFaucet") != std::string::npos) {
 		m_krefl = make_float3(0.8);
 		m_glossiness = 0.02;
+	} else if (obj_path.find("BackBoards") != std::string::npos) {
+		m_kd = make_float3(0.8, 0.56, 0.2);
+	} else if (obj_path.find("Hood_Middle") != std::string::npos) {
+		m_diffuseMapFilename = "hood.ppm";
+		m_krefl = make_float3(0.4);
+		m_glossiness = 0.02;
 	}
 	*/
 
 	// used for the dining room scene
 	/*
 	if (obj_path.find("HungLightSource") != std::string::npos) {
-		m_ke = make_float3(1, 0.9, 0.8);
-		m_intensity = 1.0;
+		m_ke = make_float3(1);
+		m_intensity = 0.2;
 		m_emissive = true;
 	} else if (obj_path.find("SideRoofLight") != std::string::npos) {
-		m_ke = make_float3(1, 0.95, 0.75);
-		m_intensity = 3.0;
-		m_emissive = true;
 	} else if (obj_path.find("MiddleRoofLight") != std::string::npos) {
-		m_ke = make_float3(1, 0.95, 0.75);
-		m_intensity = 25;
+		m_ke = make_float3(1);
+		m_intensity = 1.5;
 		m_emissive = true;
 	} else if (obj_path.find("OuterLight") != std::string::npos) {
-		m_ke = make_float3(1);
-		m_intensity = 12;
+		m_ke = make_float3(1, 0.95, 0.85);
+		m_intensity = 3.0;
 		m_emissive = true;
 	} else if (obj_path.find("MainFloor") != std::string::npos) {
-		m_diffuseMapFilename = "wood_plank_COLOR.ppm";
-		m_normalMapFilename = "wood_plank_NRM.ppm";
-		m_specularMapFilename = "wood_plank_SPEC.ppm";
+		m_diffuseMapFilename = "floor_COLOR.ppm";
+		m_specularMapFilename = "floor_SPEC.ppm";
+		m_krefl = make_float3(0.7);
+		m_glossiness = 0.4;
 	} else if (obj_path.find("ChairFrame") != std::string::npos) {
 		m_kd = make_float3(1.0);
 	} else if (obj_path.find("ChairTop") != std::string::npos) {
@@ -253,7 +257,7 @@ void SceneObject::initGraphics(std::string obj_path, std::string mtl_path, std::
 	} else if (obj_path.find("WallWithPaper") != std::string::npos) {
 		m_diffuseMapFilename = "congruent_pentagon.ppm";
 	} else if (obj_path.find("WallLowerSide") != std::string::npos) {
-		m_ks = make_float3(0.2);
+		m_kd = make_float3(0.1);
 		m_krefl = make_float3(0.3);
 		m_glossiness = 0.2;
 		m_diffuseMapFilename = "marble_wall_lower_COLOR.ppm";
@@ -267,12 +271,10 @@ void SceneObject::initGraphics(std::string obj_path, std::string mtl_path, std::
 		m_kd = make_float3(0);
 		m_krefl = make_float3(0.7);
 		m_glossiness = 0.2;
-	} else if (obj_path.find("WindowFrame") != std::string::npos) {
-		m_kd = make_float3(0.7);
-		m_ks = make_float3(0.4);
 	} else if (obj_path.find("Bowl") != std::string::npos) {
-		m_kd = make_float3(0);
-		m_ks = make_float3(0.8);
+		m_kd = make_float3(0.1);
+		m_krefl = make_float3(0.8);
+		m_glossiness = 0.1;
 	} else if (obj_path.find("TableGlass") != std::string::npos) {
 		m_alpha = make_float3(0.7);
 		m_krefl = make_float3(0.5);
@@ -284,6 +286,7 @@ void SceneObject::initGraphics(std::string obj_path, std::string mtl_path, std::
 	*/
 
 	// used for the bowling scene
+	/*
 	if (obj_path.find("SideLight") != std::string::npos) {
 		m_ke = make_float3(1);
 		m_intensity = 15;
@@ -298,9 +301,29 @@ void SceneObject::initGraphics(std::string obj_path, std::string mtl_path, std::
 		m_diffuseMapFilename = "wood_floor.ppm";
 		m_krefl = make_float3(0.4);
 	}
+	*/
+
+	// used for the throw scene
+	if (obj_path.find("TopLight") != std::string::npos) {
+		m_ke = make_float3(1);
+		m_intensity = 8;
+		m_emissive = true;
+	} else if (obj_path.find("Base") != std::string::npos) {
+		m_kd = make_float3(0.5);
+	} else if (obj_path.find("Pole") != std::string::npos) {
+		m_kd = make_float3(0.7);
+	} else if (obj_path.find("Ground") != std::string::npos) {
+		m_kd = make_float3(0.4);
+	} else if (obj_path.find("GlassPanel") != std::string::npos) {
+		m_krefl = make_float3(0.2);
+		m_alpha = make_float3(1.0);
+		m_glossiness = 0.1;
+	} else if (obj_path.find("Sphere") != std::string::npos) {
+		m_kd = make_float3(1, 0.4, 0.4);
+	}
 
 	// used for testing ss
-	/*(
+	/*
 	if (obj_path.find("Light") != std::string::npos) {
 		m_ke = make_float3(1);
 		m_intensity = 3;

@@ -31,6 +31,7 @@ Fl_Light_Button* GUIControl::motionBlurLightButton;
 Fl_Light_Button* GUIControl::giLightButton;
 
 Fl_Button* GUIControl::cameraChangeButton;
+Fl_Value_Slider* GUIControl::samplesPerFrameSlider;
 
 void GUIControl::startButtonPressed() {
 	if (!scene) {
@@ -155,8 +156,12 @@ void GUIControl::cameraChangeButtonPressed() {
 	printf("new camera type: %d\n", scene->m_camera_type);
 }
 
+void GUIControl::samplesPerFrameChanged() {
+	scene->samplesPerFrame = samplesPerFrameSlider->value();
+}
+
 void GUIControl::showControlDialog() {
-	Fl_Window* window = new Fl_Window(300, 600);
+	Fl_Window* window = new Fl_Window(300, 700);
 
 	window->begin();
 
@@ -210,6 +215,12 @@ void GUIControl::showControlDialog() {
 
 	cameraChangeButton = new Fl_Button(0, 540, 300, 30, "change camera type");
 	cameraChangeButton->callback((Fl_Callback*) cameraChangeButtonPressed);
+
+	samplesPerFrameSlider = new Fl_Value_Slider(0, 580, 300, 30);
+	samplesPerFrameSlider->type(FL_HOR_SLIDER);
+	samplesPerFrameSlider->bounds(3, 1000);
+	samplesPerFrameSlider->value(20);
+	samplesPerFrameSlider->callback((Fl_Callback*) samplesPerFrameChanged);
 
 	window->end();
 	window->show();

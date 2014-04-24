@@ -62,7 +62,7 @@ int main(int argc, char* argv[]) {
 	}
 
 	try {
-		scene = new Scene(obj_path, 2); // pinhole camera
+		scene = new Scene(obj_path, Scene::AdaptivePinhole); // pinhole camera
 
 		HANDLE hThread;
 		DWORD threadID;

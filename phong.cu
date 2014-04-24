@@ -555,13 +555,18 @@ RT_PROGRAM void closest_hit_radiance()
 	}
 
 	/* subsurface scattering */
+	/*
 	if (!float_vec_zero(subsurf_scatter_color)) {
 		const float3 ss_dir = - reflect(ray.direction, normal);
 
+		const float3 bhp = rtTransformPoint(RT_OBJECT_TO_WORLD, back_hit_point);
+
 		float3 randomized_ss_dir = randomize_vector(ss_dir, 1, seed);
 		prd_radiance.result += 0.8 * subsurf_scatter_color
-			* TraceRay(fhp, randomized_ss_dir, new_depth, prd_radiance.importance * 0.8);
+			* TraceRay(bhp, randomized_ss_dir, new_depth, prd_radiance.importance * 0.8);
 	}
+	*/
+
 
 	/* reflection */
 	float reflective_importance = reflective_amount / total_amount * prd_radiance.importance;
@@ -571,16 +576,10 @@ RT_PROGRAM void closest_hit_radiance()
 		// reflection direction
 		const float3 refl = reflect(ray.direction, normal);
 
-		// number of samples to take for each reflection
 		if (glossy_on) {
-			// const int num_glossy_sample = 10;
-			const int num_glossy_sample = 1;
-			
-			for (int i = 0; i < num_glossy_sample; i++) {
-				float3 randomizedRefl = randomize_vector(refl, glossiness, seed);
-				prd_radiance.result += reflective_importance * k_reflective
-					* TraceRay(fhp, randomizedRefl, new_depth, reflective_importance) / num_glossy_sample;
-			}
+			float3 randomizedRefl = randomize_vector(refl, glossiness, seed);
+			prd_radiance.result += reflective_importance * k_reflective
+				* TraceRay(fhp, randomizedRefl, new_depth, reflective_importance);
 		} else {
 			prd_radiance.result += k_reflective 
 				* TraceRay(fhp, refl, new_depth, reflective_importance);
@@ -610,8 +609,14 @@ RT_PROGRAM void closest_hit_radiance()
 			float importance = prd_radiance.importance * (1.0f-reflection) * luminance( alpha );
 			*/
 
-			prd_radiance.result += alpha 
-				* TraceRay(bhp, ray.direction, new_depth, refractive_importance / 2);
+			if (glossy_on) {
+				float3 randomizedRefr = randomize_vector(transmission_direction, glossiness, seed);
+				prd_radiance.result += alpha
+					* TraceRay(bhp, randomizedRefr, new_depth, reflective_importance);
+			} else {
+				prd_radiance.result += alpha 
+					* TraceRay(bhp, transmission_direction, new_depth, refractive_importance);
+			}
 		}
 	}
 	

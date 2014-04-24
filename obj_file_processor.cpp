@@ -51,6 +51,7 @@ std::vector<SceneObject*> ObjFileProcessor::processObject(std::string filename, 
 		*/
 
 		// used for the bowling scene
+		/*
 		if (it->first.find("Pin") != std::string::npos) {
 			Collider* c = new Collider;
 			c->setMass(1);
@@ -68,10 +69,32 @@ std::vector<SceneObject*> ObjFileProcessor::processObject(std::string filename, 
 			SphereCollider* sc = new SphereCollider;
 			sc->setMass(5);
 			sc->initPhysics(1);
-			sc->setInitialPosition(btVector3(-10, 0, 0));
-			sc->getRigidBody()->setLinearVelocity(btVector3(10, 0, 0));
+			sc->setInitialPosition(btVector3(-10, 2, 0));
+			sc->getRigidBody()->setLinearVelocity(btVector3(10, 0, 0.1));
 			so->attachCollider(sc);
 		}
+		*/
+
+		// used for the throw scene
+		/*
+		if (it->first.find("Ground") != std::string::npos) {
+			Collider* c = new Collider;
+			c->setMass(0);
+			c->initPhysics(targetDir + it->first);
+			so->attachCollider(c);
+		} else if (it->first.find("Base") != std::string::npos) {
+			Collider* c = new Collider;
+			c->setMass(10);
+			c->initPhysics(targetDir + it->first);
+			so->attachCollider(c);
+		} else if (it->first.find("Pole") != std::string::npos) {
+			Collider* c = new Collider;
+			c->setMass(1);
+			c->initPhysics(targetDir + it->first);
+			c->setInitialPosition(btVector3(0, 2.1, 0));
+			so->attachCollider(c);
+		}
+		*/
 	}
 
 	return sceneObjects;
