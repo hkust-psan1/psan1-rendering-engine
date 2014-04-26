@@ -49,8 +49,8 @@ rtDeclareVariable(float3, cutoff_color, , );
 
 rtDeclareVariable(float, importance_cutoff, , );
 
-rtDeclareVariable(float, linear_attenuation_factor, ,) = 0.01;
-rtDeclareVariable(float, quadratic_attenuation_factor, ,) = 0.01;
+rtDeclareVariable(float, linear_attenuation_factor, ,) = 0.1;
+rtDeclareVariable(float, quadratic_attenuation_factor, ,) = 0.1;
 
 rtDeclareVariable(float3, emissive_color, ,);
 rtDeclareVariable(float, emissive_weight, ,);
@@ -176,8 +176,11 @@ RT_PROGRAM void any_hit_shadow()
 {
 	if (!is_emissive) { // the hit object is not emissive
 		prd_shadow.attenuation *= alpha;
+
 		if (float_vec_zero(prd_shadow.attenuation)) {
 			rtTerminateRay();
+		} else {
+			rtIgnoreIntersection();
 		}
 	}
 }
@@ -317,7 +320,7 @@ RT_PROGRAM void closest_hit_radiance()
 	// stop here if the ray is from subsurface scattering
 	if (prd_radiance.ss) {
 		float distance = length(fhp - ray.origin);
-		const float att = 0.15;
+		const float att = 0.05;
 		float attenuation = 1 / (1 + att * distance + att * att * distance);
 		prd_radiance.result *= attenuation;
 		return;
@@ -384,7 +387,7 @@ RT_PROGRAM void closest_hit_radiance()
 			prd_radiance.result += reflective_importance * k_reflective
 				* TraceRay(fhp, randomizedRefl, new_depth, reflective_importance);
 		} else {
-			prd_radiance.result += k_reflective 
+			prd_radiance.result += reflective_importance * k_reflective 
 				* TraceRay(fhp, refl, new_depth, reflective_importance);
 		}
 	}
@@ -415,7 +418,7 @@ RT_PROGRAM void closest_hit_radiance()
 			if (glossy_on) {
 				float3 randomizedRefr = randomize_vector(transmission_direction, glossiness, seed);
 				prd_radiance.result += alpha
-					* TraceRay(bhp, randomizedRefr, new_depth, reflective_importance);
+					* TraceRay(bhp, randomizedRefr, new_depth, refractive_importance);
 			} else {
 				prd_radiance.result += alpha 
 					* TraceRay(bhp, transmission_direction, new_depth, refractive_importance);

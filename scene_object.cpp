@@ -304,7 +304,6 @@ void SceneObject::initGraphics(std::string obj_path, std::string mtl_path, std::
 	*/
 
 	// used for the throw scene
-	/*
 	if (obj_path.find("TopLight") != std::string::npos) {
 		m_ke = make_float3(1);
 		m_intensity = 8;
@@ -314,17 +313,23 @@ void SceneObject::initGraphics(std::string obj_path, std::string mtl_path, std::
 	} else if (obj_path.find("Pole") != std::string::npos) {
 		m_kd = make_float3(0.7);
 	} else if (obj_path.find("Ground") != std::string::npos) {
-		m_kd = make_float3(0.4);
-	} else if (obj_path.find("GlassPanel") != std::string::npos) {
-		m_krefl = make_float3(0.2);
-		m_alpha = make_float3(1.0);
+		m_diffuseMapFilename = "marble_texture_milk.ppm";
+		m_krefl = make_float3(0.4);
 		m_glossiness = 0.1;
-	} else if (obj_path.find("Sphere") != std::string::npos) {
-		m_kd = make_float3(1, 0.4, 0.4);
+	} else if (obj_path.find("Glass") != std::string::npos) {
+		m_krefl = make_float3(0.05);
+		m_alpha = make_float3(1.0);
+		m_glossiness = 0;
+	} else if (obj_path.find("Milk1") != std::string::npos) {
+		m_kd = make_float3(1);
+		m_ss = make_float3(1);
+		m_alpha = make_float3(0.4);
+	} else if (obj_path.find("Milk2") != std::string::npos) {
+		m_kd = make_float3(1);
 	}
-	*/
 
 	// used for testing ss
+	/*
 	if (obj_path.find("Light") != std::string::npos) {
 		m_ke = make_float3(1);
 		m_intensity = 3;
@@ -333,6 +338,7 @@ void SceneObject::initGraphics(std::string obj_path, std::string mtl_path, std::
 		m_kd = make_float3(0.3, 0.25, 0.05);
 		m_ss = make_float3(0.9, 0.3, 0);
 	}
+	*/
 
 	std::vector<Shader> shaders;
 	shaders.push_back(diffuseShader);

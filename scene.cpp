@@ -195,7 +195,7 @@ void Scene::createContext( InitialCameraData& camera_data ) {
 	m_context["scene_epsilon"]->setFloat( 1.e-3f );
 	m_context["radiance_ray_type"]->setUint( 0u );
 	m_context["shadow_ray_type"]->setUint( 1u );
-	m_context["max_depth"]->setInt( 6 );
+	m_context["max_depth"]->setInt( 8 );
 	m_context["frame_number"]->setUint( 0u );
 	
 	m_context["focal_scale"]->setFloat( 0.0f ); // Value is set in trace()
@@ -364,7 +364,7 @@ void Scene::initObjects()
 
 	// process obj file
 	ObjFileProcessor ofp;
-	sceneObjects = ofp.processObject(m_obj_path + "ss", m_obj_path + "objs/");
+	sceneObjects = ofp.processObject(m_obj_path + "throw", m_obj_path + "objs/");
 
 	btDbvtBroadphase* broadPhase = new btDbvtBroadphase();
 
