@@ -360,7 +360,7 @@ void SceneObject::initGraphics(std::string obj_path, std::string mtl_path, std::
 	}
 
 	// used for the lift scene
-	if (1) {
+	if (0) {
 		if (obj_path.find("Door") != std::string::npos) {
 			m_diffuseMapFilename = "brushed_metal.ppm";
 			m_krefl = make_float3(1);
@@ -373,6 +373,20 @@ void SceneObject::initGraphics(std::string obj_path, std::string mtl_path, std::
 			m_attenuation_coeff = 0.03;
 		} else if (obj_path.find("Monkey") != std::string::npos) {
 			m_kd = make_float3(1, 0.7, 0);
+		}
+	}
+
+	// used for the pot scene
+	if (1) {
+		if (obj_path.find("LightSource") != std::string::npos) {
+			m_emissive = true;
+			m_ke = make_float3(1);
+			m_intensity = 1.5;
+		} else if (obj_path.find("Pan") != std::string::npos) {
+			m_diffuseMapFilename = "brushed_metal.ppm";
+			m_krefl = make_float3(1);
+			m_glossiness = 0.5;
+			m_anisotropicMapFilename = "anis.ppm";
 		}
 	}
 

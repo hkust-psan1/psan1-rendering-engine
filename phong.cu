@@ -412,7 +412,7 @@ RT_PROGRAM void closest_hit_radiance()
 						float3 anis_value = make_float3( tex2D( anisotrophic_map, texcoord.x, texcoord.y ) );
 						float3 anis_coeff = anis_value * 2 - make_float3(1);
 						float3 dir = T * anis_coeff.x + B * anis_coeff.y;
-						randomizedRefl = normalize(refl + dir * anis_value.z * (rnd(seed) - 0.5) * 2);
+						randomizedRefl = normalize(normal + dir * anis_value.z * (rnd(seed) - 0.5) * 2);
 					} else {
 						randomizedRefl = randomize_vector(refl, glossiness, seed);
 					}

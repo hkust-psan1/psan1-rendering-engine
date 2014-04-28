@@ -367,7 +367,7 @@ void Scene::initObjects()
 
 	// process obj file
 	ObjFileProcessor ofp;
-	sceneObjects = ofp.processObject(m_obj_path + "lift", m_obj_path + "objs/");
+	sceneObjects = ofp.processObject(m_obj_path + "pot", m_obj_path + "objs/");
 
 	btDbvtBroadphase* broadPhase = new btDbvtBroadphase();
 
