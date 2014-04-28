@@ -35,6 +35,7 @@ public:
 	std::string m_diffuseMapFilename;
 	std::string m_normalMapFilename;
 	std::string m_specularMapFilename;
+	std::string m_anisotropicMapFilename;
 
 	bool m_emissive;
 	float3 m_ke;
@@ -47,6 +48,7 @@ public:
 	float m_ns;
 	float m_glossiness;
 	float m_intensity;
+	float m_attenuation_coeff;
 
 	static Context context;
 	static Program mesh_intersect;

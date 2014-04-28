@@ -49,5 +49,19 @@ RT_PROGRAM void miss()
 
   prd_radiance.result = result;
   */
-	prd_radiance.result = make_float3(0.6);
+
+	// for the kitchen scene at night
+	// prd_radiance.result = make_float3(0, 0, 0.06);
+
+	prd_radiance.result = make_float3(0.8);
+}
+
+rtTextureSampler<float4, 2> envmap;
+
+RT_PROGRAM void envmap_miss() {
+  float theta = atan2f( ray.direction.x, ray.direction.z );
+  float phi   = M_PIf * 0.5f -  acosf( ray.direction.y );
+  float u     = (theta + M_PIf) * (0.5f * M_1_PIf);
+  float v     = 0.5f * ( 1.0f + sin(phi) );
+  prd_radiance.result = make_float3( tex2D(envmap, u, v) );
 }

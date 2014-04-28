@@ -34,6 +34,7 @@ if(GLUT_FOUND AND OPENGL_FOUND)
     phong.cu
     gradientbg.cu
     triangle_mesh_iterative.cu
+    shading.cu
     )
 
 else()

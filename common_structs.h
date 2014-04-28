@@ -45,6 +45,7 @@ struct SpotLight
   float angle;
   float intensity;
   float dropoff_rate;
+  float attenuation_coeff;
 };
 
 struct RectangleLight
@@ -55,6 +56,7 @@ struct RectangleLight
   float3 pos, r1, r2;
   float3 color;
   float intensity;
+  float attenuation_coeff;
 };
 
 struct DirectionalLight
@@ -65,6 +67,7 @@ struct DirectionalLight
   float3 direction;
   float3 color;
   float intensity;
+  float attenuation_coeff;
 };
 
 struct Shader
@@ -89,28 +92,3 @@ enum ShaderType {
 
 enum ColorType {
 };
-
-/*
-class Node {
-};
-
-class OutputNode : public Node {
-	ShaderNode* input;
-};
-
-class ShaderNode : public Node {
-	OutputNode* output;
-};
-
-class MixNode : public OutputNode {
-	ShaderNode* input2;
-	float fac;
-};
-
-class ColorNode : public Node {
-	ShaderNode* output;
-};
-
-class TextureNode : public ColorNode {
-};
-*/

@@ -1,6 +1,7 @@
 #include "gui_control.h"
 #include "scene.h"
 #include "utils.h"
+#include "node_shading_system.h"
 
 unsigned int Scene::WIDTH = 512u;
 unsigned int Scene::HEIGHT = 384u;
@@ -190,7 +191,7 @@ void Scene::createContext( InitialCameraData& camera_data ) {
 	// Context
 	m_context->setEntryPointCount( 3 );
 	m_context->setRayTypeCount( 3 );
-	m_context->setStackSize( 4800 );
+	m_context->setStackSize( 9600 );
 
 	m_context["scene_epsilon"]->setFloat( 1.e-3f );
 	m_context["radiance_ray_type"]->setUint( 0u );
@@ -245,7 +246,10 @@ void Scene::createContext( InitialCameraData& camera_data ) {
 
 	// Miss program.
 	ptx_path = ptxpath( "tracer", "gradientbg.cu" );
-	m_context->setMissProgram( 0, m_context->createProgramFromPTXFile( ptx_path, "miss" ) );
+	// m_context->setMissProgram( 0, m_context->createProgramFromPTXFile( ptx_path, "miss" ) );
+	m_context->setMissProgram( 0, m_context->createProgramFromPTXFile( ptx_path, "envmap_miss" ) );
+	const char* filename = "D:/OptiX SDK 3.0.1/SDK - Copy/tracer/CedarCity.hdr";
+	m_context["envmap"]->setTextureSampler(loadTexture(m_context, filename, make_float3(0)));
 	m_context["background_light"]->setFloat( 1.0f, 1.0f, 1.0f );
 	m_context["background_dark"]->setFloat( 0.3f, 0.3f, 0.3f );
 
@@ -258,14 +262,13 @@ void Scene::createContext( InitialCameraData& camera_data ) {
 	bg_up = normalize(bg_up);
 	m_context["up"]->setFloat( bg_up.x, bg_up.y, bg_up.z );
 	
-	// Set up camera
+	// Set up camera position
 
 	// for the dining room scene
 	camera_data = InitialCameraData( make_float3( 6.65, 1.45, -1.29 ), // eye
 		make_float3( 0.0, 1.45, 5 ),		// lookat
 		make_float3( 0.0, 1.0, 0.0 ),		// up
 		45.0 );	// vfov
-
 
 	// for the kitchen scene
 	/*
@@ -364,7 +367,7 @@ void Scene::initObjects()
 
 	// process obj file
 	ObjFileProcessor ofp;
-	sceneObjects = ofp.processObject(m_obj_path + "throw", m_obj_path + "objs/");
+	sceneObjects = ofp.processObject(m_obj_path + "lift", m_obj_path + "objs/");
 
 	btDbvtBroadphase* broadPhase = new btDbvtBroadphase();
 
@@ -423,10 +426,11 @@ void Scene::initObjects()
 		make_float3(0, -1, 0), // direction
 		120 / 57.3 / 2, // angle
 		4, // intensity
-		8 // dropoff rate
+		8, // dropoff rate
+		0.3 // attenuation factor
 	};
 
-	spotLights.push_back(sl1);
+	// spotLights.push_back(sl1);
 
 	// add spot lights to the scene
 	SpotLight* spotLightArray = NULL;
@@ -445,7 +449,8 @@ void Scene::initObjects()
 	DirectionalLight dl1 = {
 		make_float3(5, -3, 0), // direction
 		make_float3(1, 1, 1), // color
-		1 // intensity
+		1, // intensity
+		0.1 // attenuation factor
 	};
 
 	// directionalLights.push_back(dl1);
