@@ -53,7 +53,7 @@ RT_PROGRAM void miss()
 	// for the kitchen scene at night
 	// prd_radiance.result = make_float3(0, 0, 0.06);
 
-	prd_radiance.result = make_float3(0.8);
+	prd_radiance.result = make_float3(0.2);
 }
 
 rtTextureSampler<float4, 2> envmap;

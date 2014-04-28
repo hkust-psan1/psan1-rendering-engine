@@ -246,10 +246,13 @@ void Scene::createContext( InitialCameraData& camera_data ) {
 
 	// Miss program.
 	ptx_path = ptxpath( "tracer", "gradientbg.cu" );
+
+	const char* filename = "D:/OptiX SDK 3.0.1/SDK - Copy/tracer/indoor.hdr";
+	m_context["envmap"]->setTextureSampler(loadTexture(m_context, filename, make_float3(0)));
+
 	// m_context->setMissProgram( 0, m_context->createProgramFromPTXFile( ptx_path, "miss" ) );
 	m_context->setMissProgram( 0, m_context->createProgramFromPTXFile( ptx_path, "envmap_miss" ) );
-	const char* filename = "D:/OptiX SDK 3.0.1/SDK - Copy/tracer/CedarCity.hdr";
-	m_context["envmap"]->setTextureSampler(loadTexture(m_context, filename, make_float3(0)));
+
 	m_context["background_light"]->setFloat( 1.0f, 1.0f, 1.0f );
 	m_context["background_dark"]->setFloat( 0.3f, 0.3f, 0.3f );
 

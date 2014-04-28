@@ -26,20 +26,15 @@ image_data = []
 (0 .. image_height).each do |i|
 	image_row = []
 	(0 .. image_width).each do |j|
-		"""
 		# for generating elavator door texture
-		rand_1 = rand(10) - 5
-		rand_2 = rand(20) - 10
-		image_row << [127 + rand_1, 10 + rand_2, 255]
-		"""
+		rand_1 = rand(2) - 1
+		rand_2 = rand(2) - 1
+		image_row << [127 + rand_1, 127 + rand_2, 255]
 
+		"""
 		x_diff = 1.0 * j - center_x
 		y_diff = 1.0 * i - center_y
 
-		"""
-		x_dir = y_diff
-		y_dir = - x_diff
-		"""
 		x_dir = x_diff
 		y_dir = y_diff
 
@@ -55,6 +50,7 @@ image_data = []
 
 		pixel_value = [red.to_i, green.to_i, blue.to_i]
 		image_row << pixel_value
+		"""
 	end
 
 	image_data << image_row
@@ -62,7 +58,7 @@ end
 
 output = PNM::Image.new(image_data, :type => :ppm)
 
-ppm_name = 'bottom_anis.ppm'
+ppm_name = 'normal.ppm'
 
 output.write(ppm_name)
 

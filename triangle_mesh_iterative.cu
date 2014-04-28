@@ -87,7 +87,6 @@ RT_PROGRAM void mesh_intersect( int primIdx )
       if ( texcoord_buffer.size() == 0 || t_idx.x < 0 || t_idx.y < 0 || t_idx.z < 0 ) {
         texcoord = make_float3( 0.0f, 0.0f, 0.0f );
       } else {
-
         float2 t0 = texcoord_buffer[ t_idx.x ];
         float2 t1 = texcoord_buffer[ t_idx.y ];
         float2 t2 = texcoord_buffer[ t_idx.z ];

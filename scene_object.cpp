@@ -281,9 +281,9 @@ void SceneObject::initGraphics(std::string obj_path, std::string mtl_path, std::
 			m_kd = make_float3(0.1);
 			m_krefl = make_float3(0.6);
 			m_glossiness = 0.03;
-		} else if (obj_path.find("AnisSurface") != std::string::npos) {
+		} else if (obj_path.find("Circle") != std::string::npos) {
 			m_kd = make_float3(0.1);
-			m_krefl = make_float3(1.8);
+			m_krefl = make_float3(1.0);
 			m_glossiness = 0.5;
 			m_anisotropicMapFilename = "bottom_anis.ppm";
 		}
@@ -382,11 +382,26 @@ void SceneObject::initGraphics(std::string obj_path, std::string mtl_path, std::
 			m_emissive = true;
 			m_ke = make_float3(1);
 			m_intensity = 1.5;
-		} else if (obj_path.find("Pan") != std::string::npos) {
-			m_diffuseMapFilename = "brushed_metal.ppm";
+		} else if (obj_path.find("PotBody") != std::string::npos) {
 			m_krefl = make_float3(1);
 			m_glossiness = 0.5;
 			m_anisotropicMapFilename = "anis.ppm";
+		} else if (obj_path.find("PotBar") != std::string::npos) {
+			m_krefl = make_float3(1);
+			m_glossiness = 0.2;
+		} else if (obj_path.find("PotRing") != std::string::npos) {
+			m_krefl = make_float3(1);
+			m_glossiness = 0.2;
+		} else if (obj_path.find("TopHandle") != std::string::npos) {
+			m_krefl = make_float3(0.1);
+			m_glossiness = 1;
+		} else if (obj_path.find("PotGlass") != std::string::npos) {
+			m_krefl = make_float3(0.3);
+			m_alpha = make_float3(0.8);
+		} else if (obj_path.find("Table") != std::string::npos) {
+			m_diffuseMapFilename = "marble-table_COLOR.ppm";
+			m_krefl = make_float3(0.3);
+			m_glossiness = 0.3;
 		}
 	}
 
