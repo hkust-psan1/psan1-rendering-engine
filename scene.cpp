@@ -4,7 +4,7 @@
 #include "node_shading_system.h"
 
 unsigned int Scene::WIDTH = 512u;
-unsigned int Scene::HEIGHT = 384u;
+unsigned int Scene::HEIGHT = 512u;
 
 Scene::Scene( const std::string& obj_path, int camera_type ) 
 	: SampleScene(), m_obj_path( obj_path ), m_frame_number( 0u ), 
@@ -121,61 +121,75 @@ void Scene::trace(const RayGenCameraData& camera_data) {
 		m_taking_snapshot = false;
 		GUIControl::snapShotButton->activate();
 	}
-
-	if (m_frame_number == samplesPerFrame)
-	{
-		if (GUIControl::onAnimation) 
-		{ // when animation is on, step simulation
+	
+	if (m_frame_number >= samplesPerFrame) {
+		if (GUIControl::onAnimation) { // when animation is on, step simulation
 			world->stepSimulation(1 / 100.f, 10);
-		}
 
-		// re-position objects according to simulation result
-		for (int i = 0; i < sceneObjects.size(); i++) 
-		{
-			SceneObject* so = sceneObjects[i];
-			Collider* c = so->getCollider();
+			// re-position objects according to simulation result
+			for (int i = 0; i < sceneObjects.size(); i++) {
+				SceneObject* so = sceneObjects[i];
+				Collider* c = so->getCollider();
 
-			if (c) 
-			{
-				c->step();
+				if (c) {
+					c->step();
+				}
 			}
+
+			// mark acceleration structure dirty
+			g->getAcceleration()->markDirty();
 		}
 
-		// mark acceleration structure dirty
-		g->getAcceleration()->markDirty();
-
-		//reset
+		// reset
 		m_camera_changed = true;
 
-		//write picture
-		cv::Mat img(WIDTH, HEIGHT, cv::DataType<cv::Vec3b>::type);
+		if (m_recording) {
+			//write picture
+			cv::Mat img(WIDTH, HEIGHT, CV_8UC3, cv::Scalar(0,150, 0));
+			
+			std::vector<unsigned char> pix(WIDTH * HEIGHT * 3);
 
-		writer << img;
-		printf("hi");
+			RTbuffer buffer = getOutputBuffer()->get(); 
+			
+			RTresult result;
+			void* imageData;
+			result = rtBufferMap(buffer, &imageData);
 
-		/*
-		std::vector<unsigned char> pix(WIDTH * HEIGHT * 3);
-		Buffer buffer = m_context["output_buffer"]->getBuffer(); 
-		float* src = (float*)(&buffer);
-				
-		printf("hey");
-		for (unsigned int i = 0u; i < WIDTH; i++)
-		{			
-			for (unsigned int j = 0u; j < HEIGHT; j++)
-			{
-				//float r = *(src++);
-				//float g= *(src++);
-				//float b = *(src++);
-				//src++;
-				//unsigned int R = r < 0 ? 0 : r > 0xff ? 0xff : r;
-				//unsigned int G = g < 0 ? 0 : g > 0xff ? 0xff : g;
-				//unsigned int B = b < 0 ? 0 : b > 0xff ? 0xff : b;
-				img.at<cv::Vec3b>(i, j) = cv::Vec3b(i % 256, j % 256, (i * j) % 256);
+			for(int j = HEIGHT - 1; j >= 0; --j) {
+				unsigned char *dst = &pix[0] + (3*WIDTH*(HEIGHT-1-j));
+				float* src = ((float*)imageData) + (4*WIDTH*j);
+
+				for(int i = 0; i < WIDTH; i++) {
+					for(int elem = 0; elem < 3; ++elem) {
+						int P = static_cast<int>((*src++) * 255.0f);
+						unsigned int Clamped = P < 0 ? 0 : P > 0xff ? 0xff : P;
+						*dst++ = static_cast<unsigned char>(Clamped);
+				}
+
+				// skip alpha
+				src++;
+				}
 			}
+
+			int count = 0;
+			for (int i = 0; i < WIDTH; i++)
+			{			
+				for (int j = 0; j < HEIGHT; j++)
+				{
+					unsigned char r = pix[count];
+					count++;
+					unsigned char g = pix[count];
+					count++;
+					unsigned char b = pix[count];
+					count++;
+					img.at<cv::Vec3b>(i, j) = cv::Vec3b(r, g, b);
+				}
+			}
+
+			rtBufferUnmap(buffer);
+
+			writer << img;
 		}
-		*/
-		
-		
 	}
 }
 
@@ -370,7 +384,7 @@ void Scene::initObjects()
 
 	// process obj file
 	ObjFileProcessor ofp;
-	sceneObjects = ofp.processObject(m_obj_path + "pot", m_obj_path + "objs/");
+	sceneObjects = ofp.processObject(m_obj_path + "bowling", m_obj_path + "objs/");
 
 	btDbvtBroadphase* broadPhase = new btDbvtBroadphase();
 

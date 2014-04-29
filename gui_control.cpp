@@ -45,7 +45,7 @@ void GUIControl::startButtonPressed() {
 		pauseButton->label("pause");
 		pauseButton->activate();
 
-		ballVelocityZSlider->deactivate();
+		// ballVelocityZSlider->deactivate();
 
 		onAnimation = true;
 		initialStep = false;
@@ -56,7 +56,7 @@ void GUIControl::startButtonPressed() {
 
 		pauseButton->deactivate();
 
-		ballVelocityZSlider->activate();
+		// ballVelocityZSlider->activate();
 
 		onAnimation = false;
 		initialStep = true;
@@ -98,12 +98,15 @@ void GUIControl::recordButtonPressed() {
 		return;
 	}
 
+	printf("presseed");
+
 	if (!scene->m_recording) {
 		recordButton->label("stop recording");
 		scene->m_recording = true;
 	} else {
 		recordButton->label("record");
 		scene->m_recording = false;
+		scene->writer.release();
 	}
 }
 
@@ -172,6 +175,7 @@ void GUIControl::showControlDialog() {
 	pauseButton->callback((Fl_Callback*) pauseButtonPressed);
 	pauseButton->deactivate();
 
+	/*
 	Fl_Box* ballVelocityLabel = new Fl_Box(0, 80, 300, 20, "ball velocity on Z direction");
 
 	ballVelocityZSlider = new Fl_Value_Slider(0, 110, 300, 30);
@@ -179,6 +183,7 @@ void GUIControl::showControlDialog() {
 	ballVelocityZSlider->bounds(-1, 1);
 	ballVelocityZSlider->value(0);
 	ballVelocityZSlider->callback((Fl_Callback*) ballVelocityZSliderValueChanged);
+	*/
 
 	Fl_Box* cameraFocalLengthLabel = new Fl_Box(0, 150, 300, 20, "camera focal length");
 

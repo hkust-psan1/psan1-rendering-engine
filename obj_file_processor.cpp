@@ -51,12 +51,10 @@ std::vector<SceneObject*> ObjFileProcessor::processObject(std::string filename, 
 		*/
 
 		// used for the bowling scene
-		/*
 		if (it->first.find("Pin") != std::string::npos) {
 			Collider* c = new Collider;
 			c->setMass(1);
 			c->initPhysics(targetDir + "../pin-phy.obj");
-			// c->setInitialPosition(btVector3(10, 0, 0));
 			float3 pos = pinPositions[pin_index++];
 			c->setInitialPosition(btVector3(pos.x, pos.y, pos.z));
 			so->attachCollider(c);
@@ -73,7 +71,6 @@ std::vector<SceneObject*> ObjFileProcessor::processObject(std::string filename, 
 			sc->getRigidBody()->setLinearVelocity(btVector3(10, 0, 0.1));
 			so->attachCollider(sc);
 		}
-		*/
 
 		// used for the throw scene
 		/*

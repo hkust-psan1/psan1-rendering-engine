@@ -208,9 +208,16 @@ RT_PROGRAM void closest_hit_radiance()
 		kd = k_diffuse;
 	}
 
+	// front hit point
+	float3 fhp = rtTransformPoint(RT_OBJECT_TO_WORLD, front_hit_point);
+
+	// back hit point
+	float3 bhp = rtTransformPoint(RT_OBJECT_TO_WORLD, back_hit_point);
+
 	// a trick to replace the diffuse factor with ss color
 	if (prd_radiance.ss) {
 		kd = subsurf_scatter_color;
+		fhp = bhp;
 	}
 
 	// Here tangent, bitangent and normal are attribute variables set in the ray-generation program,
@@ -229,9 +236,6 @@ RT_PROGRAM void closest_hit_radiance()
 	} else {
 		normal = N;
 	}
-
-	// front hit point
-	const float3 fhp = rtTransformPoint(RT_OBJECT_TO_WORLD, front_hit_point);
 
 	prd_radiance.result = k_emission;
 
@@ -323,9 +327,9 @@ RT_PROGRAM void closest_hit_radiance()
 	// stop here if the ray is from subsurface scattering
 	if (prd_radiance.ss) {
 		float distance = length(fhp - ray.origin);
-		const float att = 0.05;
+		const float att = 0.3; // TODO
 		float attenuation = 1 / (1 + att * distance + att * att * distance);
-		prd_radiance.result *= attenuation;
+		prd_radiance.result = diffuse_result * attenuation;
 		return;
 	}
 
@@ -364,8 +368,6 @@ RT_PROGRAM void closest_hit_radiance()
 	float refractive_importance = refractive_amount / total_amount * prd_radiance.importance;
 
 	if (!float_vec_zero(alpha) && refractive_importance > importance_cutoff) {
-		// back hit point
-		const float3 bhp = rtTransformPoint(RT_OBJECT_TO_WORLD, back_hit_point);
 
 		float3 transmission_direction;
 		if (refract(transmission_direction, ray.direction, normal, IOR)) {
@@ -454,5 +456,4 @@ RT_PROGRAM void closest_hit_radiance()
 		prd_radiance.result += 1.8 * subsurf_scatter_color
 			* TraceRay(bhp, random_ray_direction, new_depth, prd_radiance.importance * 0.8, true);
 	}
-	
 }

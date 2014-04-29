@@ -290,10 +290,10 @@ void SceneObject::initGraphics(std::string obj_path, std::string mtl_path, std::
 	}
 
 	// used for the bowling scene
-	if (0) {
+	if (1) {
 		if (obj_path.find("SideLight") != std::string::npos) {
 			m_ke = make_float3(1);
-			m_intensity = 15;
+			m_intensity = 30;
 			m_emissive = true;
 		} else if (obj_path.find("Pin") != std::string::npos) {
 			m_diffuseMapFilename = "pin-diffuse.ppm";
@@ -331,6 +331,9 @@ void SceneObject::initGraphics(std::string obj_path, std::string mtl_path, std::
 			m_ss = make_float3(1);
 		} else if (obj_path.find("Milk2") != std::string::npos) {
 			m_kd = make_float3(1);
+		} else if (obj_path.find("Angel") != std::string::npos) {
+			m_kd = make_float3(0.75, 0.5, 0.35);
+			m_ss = make_float3(0.9, 0.6, 0.2);
 		}
 	}
 
@@ -377,7 +380,7 @@ void SceneObject::initGraphics(std::string obj_path, std::string mtl_path, std::
 	}
 
 	// used for the pot scene
-	if (1) {
+	if (0) {
 		if (obj_path.find("LightSource") != std::string::npos) {
 			m_emissive = true;
 			m_ke = make_float3(1);
