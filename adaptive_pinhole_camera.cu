@@ -91,13 +91,20 @@ static __device__ __inline__ void fill( const uint2& index, const float3& color,
 // Trace ray through screen_coord
 static __device__ __inline__ float3 trace( float2 screen_coord )
 {
+  unsigned int seed = tea<16>(launch_index.y * launch_dim.x + launch_index.x, launch_index.y + frame_number);;
+
+  float uu = rnd(seed) - 0.5f;
+  float vv = rnd(seed) - 0.5f;
+
+  screen_coord.x += uu;
+  screen_coord.y += vv;
+
   size_t2 screen = output_buffer.size();
   float2 d = screen_coord / make_float2(screen) * 2.f - 1.f;
   float3 ray_origin = eye;
   float3 ray_direction = normalize(d.x*U + d.y*V + W);
 
   if (dof_on) {
-	  unsigned int seed = tea<16>(launch_index.y * launch_dim.x + launch_index.x, launch_index.y + frame_number);;
 	  float3 ray_target = ray_origin + focal_scale * ray_direction;
 	  float2 sample = square_to_disk(make_float2(rnd(seed), rnd(seed)));
 	  ray_origin += 0.1 * (sample.x * normalize(U) + sample.y * normalize(V));
@@ -125,6 +132,7 @@ static __device__ __inline__ void coarseTrace( const uint2& index, unsigned int 
   }
 }
 
+/*
 static __device__ __inline__ float3 jittered_trace( const uint2& index )
 {
     // Trace a randomly offset ray within the pixel
@@ -139,6 +147,7 @@ static __device__ __inline__ float3 jittered_trace( const uint2& index )
 
     return result;
 }
+*/
 
 RT_PROGRAM void pinhole_camera()
 {
@@ -147,7 +156,7 @@ RT_PROGRAM void pinhole_camera()
   else if ( frame_number == 2 ) coarseTrace( launch_index, 2u );
   else if ( frame_number == 3 ) {
 
-    float3 result = jittered_trace( launch_index );
+    float3 result = trace( make_float2(launch_index) );
     output_buffer[ launch_index ] = make_color( result );
 
     // Update buffers
@@ -157,6 +166,7 @@ RT_PROGRAM void pinhole_camera()
   }
   else
   {
+	/*
     {
       // ns < 0x80000000 means the variance is too high and we should keep rendering.
       volatile unsigned int ns = num_samples_buffer[ launch_index ];
@@ -164,14 +174,14 @@ RT_PROGRAM void pinhole_camera()
         return;
       }
     }
+	*/
 
-    float3 new_color = jittered_trace( launch_index );
+    float3 new_color = trace( make_float2(launch_index) );
   
     // Add in new ray's contribution
     volatile unsigned int ns = num_samples_buffer[ launch_index ] & ~0x80000000; // volatile workaround for Cuda 2.0 bug
-    float  new_value_weight = 1.0f / (float)ns;
-    //float  new_value_weight = 1.0f;
-    float  old_value_weight = 1.0f - new_value_weight;
+    float new_value_weight = 1.0f / (float)ns;
+    float old_value_weight = 1.0f - new_value_weight;
     float4& old_bytes = output_buffer[ launch_index ];
     float3 old_color = make_float3(old_bytes.x, old_bytes.y, old_bytes.z);
     float3 result = old_color*old_value_weight + new_color*new_value_weight;

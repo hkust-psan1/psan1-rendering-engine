@@ -1,6 +1,8 @@
 #ifndef SCENE_OBJECT_
 #define SCENE_OBJECT_
 
+#define SCENE_NAME std::string("bowling")
+
 #include <optixu/optixpp_namespace.h>
 #include <optixu/optixu_math_namespace.h>
 #include <optixu/optixu_matrix_namespace.h>
@@ -35,7 +37,6 @@ public:
 	std::string m_diffuseMapFilename;
 	std::string m_normalMapFilename;
 	std::string m_specularMapFilename;
-	std::string m_anisotropicMapFilename;
 
 	bool m_emissive;
 	float3 m_ke;
@@ -45,10 +46,12 @@ public:
 	float3 m_krefl;
 	float3 m_alpha;
 	float3 m_ss;
-	float m_ns;
+	float m_ss_att;
 	float m_glossiness;
 	float m_intensity;
 	float m_attenuation_coeff;
+
+	bool m_anisotropic;
 
 	static Context context;
 	static Program mesh_intersect;

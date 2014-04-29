@@ -1,6 +1,8 @@
 #include "scene.h"
 #include "gui_control.h"
 
+#define MAX_SAMPLES_PER_FRAME 1000
+
 Scene* GUIControl::scene = NULL;
 
 bool GUIControl::onAnimation = false;
@@ -161,6 +163,10 @@ void GUIControl::cameraChangeButtonPressed() {
 
 void GUIControl::samplesPerFrameChanged() {
 	scene->samplesPerFrame = samplesPerFrameSlider->value();
+
+	if (scene->samplesPerFrame == MAX_SAMPLES_PER_FRAME) {
+		scene->samplesPerFrame = 999999;
+	}
 }
 
 void GUIControl::showControlDialog() {
@@ -223,7 +229,7 @@ void GUIControl::showControlDialog() {
 
 	samplesPerFrameSlider = new Fl_Value_Slider(0, 580, 300, 30);
 	samplesPerFrameSlider->type(FL_HOR_SLIDER);
-	samplesPerFrameSlider->bounds(3, 1000);
+	samplesPerFrameSlider->bounds(3, MAX_SAMPLES_PER_FRAME);
 	samplesPerFrameSlider->value(20);
 	samplesPerFrameSlider->callback((Fl_Callback*) samplesPerFrameChanged);
 

@@ -4,7 +4,7 @@
 #include "node_shading_system.h"
 
 unsigned int Scene::WIDTH = 512u;
-unsigned int Scene::HEIGHT = 512u;
+unsigned int Scene::HEIGHT = 384u;
 
 Scene::Scene( const std::string& obj_path, int camera_type ) 
 	: SampleScene(), m_obj_path( obj_path ), m_frame_number( 0u ), 
@@ -282,18 +282,18 @@ void Scene::createContext( InitialCameraData& camera_data ) {
 	// Set up camera position
 
 	// for the dining room scene
+	/*
 	camera_data = InitialCameraData( make_float3( 6.65, 1.45, -1.29 ), // eye
 		make_float3( 0.0, 1.45, 5 ),		// lookat
 		make_float3( 0.0, 1.0, 0.0 ),		// up
 		45.0 );	// vfov
+		*/
 
 	// for the kitchen scene
-	/*
 	camera_data = InitialCameraData( make_float3( 9.0, 2.93, -0.15 ), // eye
 		make_float3( 0.0, 2.93, 0.0 ),		// lookat
 		make_float3( 0.0, 1.0, 0.0 ),		// up
 		45.0 );	// vfov
-		*/
 
 	// Declare camera variables. The values do not matter, they will be overwritten in trace.
 	m_context["eye"]->setFloat( make_float3( 0.0f, 0.0f, 0.0f ) );
@@ -384,7 +384,7 @@ void Scene::initObjects()
 
 	// process obj file
 	ObjFileProcessor ofp;
-	sceneObjects = ofp.processObject(m_obj_path + "bowling", m_obj_path + "objs/");
+	sceneObjects = ofp.processObject(m_obj_path + SCENE_NAME, m_obj_path + "objs/");
 
 	btDbvtBroadphase* broadPhase = new btDbvtBroadphase();
 
@@ -437,17 +437,19 @@ void Scene::initObjects()
 	areaLightBuffer->unmap();
 	m_context["area_lights"]->set(areaLightBuffer);
 
-	SpotLight sl1 = {
-		make_float3(2.56, 3.76, 2.89), // position
-		make_float3(1, 0.95, 0.8), // color
-		make_float3(0, -1, 0), // direction
-		120 / 57.3 / 2, // angle
-		4, // intensity
-		8, // dropoff rate
-		0.3 // attenuation factor
-	};
+	if (SCENE_NAME == "interior") {
+		SpotLight sl1 = {
+			make_float3(2.56, 3.76, 2.89), // position
+			make_float3(1, 0.95, 0.8), // color
+			make_float3(0, -1, 0), // direction
+			120 / 57.3 / 2, // angle
+			4, // intensity
+			8, // dropoff rate
+			0.3 // attenuation factor
+		};
 
-	// spotLights.push_back(sl1);
+		spotLights.push_back(sl1);
+	}
 
 	// add spot lights to the scene
 	SpotLight* spotLightArray = NULL;

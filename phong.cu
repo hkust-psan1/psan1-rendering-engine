@@ -38,7 +38,6 @@ rtDeclareVariable(float3, k_emission, , );
 rtDeclareVariable(float3, k_diffuse, , );
 
 rtDeclareVariable(float3, k_specular, , );
-rtDeclareVariable(int, ns, , );
 
 rtDeclareVariable(float3, k_reflective, , );
 rtDeclareVariable(float, glossiness, , );
@@ -65,16 +64,17 @@ rtDeclareVariable(float, refractive_weight, ,);
 
 rtDeclareVariable(float3, subsurf_scatter_color, , );
 rtDeclareVariable(float, subsurf_scatter_weight, , );
+rtDeclareVariable(float, subsurf_att, , ) = 0.1;
 
 rtDeclareVariable(int, has_diffuse_map, , );
 rtDeclareVariable(int, has_normal_map, , );
 rtDeclareVariable(int, has_specular_map, , );
-rtDeclareVariable(int, has_anisotrophic_map, , );
+
+rtDeclareVariable(int, anisotropic, , );
 
 rtTextureSampler<float4, 2> kd_map = NULL;
 rtTextureSampler<float4, 2> ks_map = NULL;
 rtTextureSampler<float4, 2> normal_map = NULL;
-rtTextureSampler<float4, 2> anisotrophic_map = NULL;
 
 rtDeclareVariable(int, soft_shadow_on, ,) = false;
 rtDeclareVariable(int, glossy_on, ,) = false;
@@ -324,14 +324,6 @@ RT_PROGRAM void closest_hit_radiance()
 		}
 	}
 
-	// stop here if the ray is from subsurface scattering
-	if (prd_radiance.ss) {
-		float distance = length(fhp - ray.origin);
-		const float att = 0.3; // TODO
-		float attenuation = 1 / (1 + att * distance + att * att * distance);
-		prd_radiance.result = diffuse_result * attenuation;
-		return;
-	}
 
 	const int new_depth = prd_radiance.depth + 1;
 
@@ -361,6 +353,14 @@ RT_PROGRAM void closest_hit_radiance()
 		// reduce importance more for indirect lighting to speed up rendering (divide by 2)
 		diffuse_result += 0.8 * diffuse_importance * kd 
 			* TraceRay(fhp, random_ray_direction, new_depth, diffuse_importance / 2);
+	}
+	
+	// stop here if the ray is from subsurface scattering
+	if (prd_radiance.ss) {
+		float distance = length(fhp - ray.origin);
+		float attenuation = 1 / (1 + subsurf_att * distance + subsurf_att * distance * distance);
+		prd_radiance.result = diffuse_result * attenuation;
+		return;
 	}
 
 	/* refraction */
@@ -409,13 +409,9 @@ RT_PROGRAM void closest_hit_radiance()
 		if (importance > importance_cutoff) {
 			if (glossy_on) {
 				float3 randomizedRefl;
-				if (has_anisotrophic_map) {
+				if (anisotropic) {
 					if (rnd(seed) > 0.0) {
-						float3 anis_value = make_float3( tex2D( anisotrophic_map, texcoord.x, texcoord.y ) );
-						float3 anis_coeff = anis_value * 2 - make_float3(1);
-						// float3 dir = T * anis_coeff.x + B * anis_coeff.y;
-						float3 dir = B;
-						randomizedRefl = normalize(refl + dir * (rnd(seed) - 0.5) * 2);
+						randomizedRefl = normalize(refl + B * (rnd(seed) - 0.5) * 2);
 					} else {
 						randomizedRefl = randomize_vector(refl, glossiness, seed);
 					}
@@ -453,7 +449,7 @@ RT_PROGRAM void closest_hit_radiance()
 
 		const float3 bhp = rtTransformPoint(RT_OBJECT_TO_WORLD, back_hit_point);
 
-		prd_radiance.result += 1.8 * subsurf_scatter_color
+		prd_radiance.result += subsurf_scatter_color
 			* TraceRay(bhp, random_ray_direction, new_depth, prd_radiance.importance * 0.8, true);
 	}
 }
