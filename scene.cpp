@@ -2,9 +2,10 @@
 #include "scene.h"
 #include "utils.h"
 #include "node_shading_system.h"
+#include "collider.h"
 
 unsigned int Scene::WIDTH = 512u;
-unsigned int Scene::HEIGHT = 384u;
+unsigned int Scene::HEIGHT = 512u;
 
 Scene::Scene( const std::string& obj_path, int camera_type ) 
 	: SampleScene(), m_obj_path( obj_path ), m_frame_number( 0u ), 
@@ -58,6 +59,12 @@ void Scene::trace(const RayGenCameraData& camera_data) {
 	m_context["V"]->setFloat(camera_data.V);
 	m_context["W"]->setFloat(camera_data.W);
 	m_context["frame_number"]->setUint(m_frame_number++);
+
+	if (GUIControl::onAnimation) 
+	{
+		float3 W = make_float3(Collider::focus_x , Collider::focus_y, Collider::focus_z) - camera_data.eye; 
+		m_context["W"]->setFloat(W);
+	}
 
 	m_context["soft_shadow_on"]->setInt(GUIControl::softShadowOn);
 	m_context["aa_on"]->setInt(GUIControl::aaOn);
@@ -145,7 +152,7 @@ void Scene::trace(const RayGenCameraData& camera_data) {
 
 		if (m_recording) {
 			//write picture
-			cv::Mat img(WIDTH, HEIGHT, CV_8UC3, cv::Scalar(0,150, 0));
+			cv::Mat img(HEIGHT, WIDTH, CV_8UC3, cv::Scalar(0,150, 0));
 			
 			std::vector<unsigned char> pix(WIDTH * HEIGHT * 3);
 
@@ -172,9 +179,9 @@ void Scene::trace(const RayGenCameraData& camera_data) {
 			}
 
 			int count = 0;
-			for (int i = 0; i < WIDTH; i++)
+			for (int i = 0; i < HEIGHT; i++)
 			{			
-				for (int j = 0; j < HEIGHT; j++)
+				for (int j = 0; j < WIDTH; j++)
 				{
 					unsigned char r = pix[count];
 					count++;
@@ -182,12 +189,12 @@ void Scene::trace(const RayGenCameraData& camera_data) {
 					count++;
 					unsigned char b = pix[count];
 					count++;
-					img.at<cv::Vec3b>(i, j) = cv::Vec3b(r, g, b);
+					img.at<cv::Vec3b>(i, j) = cv::Vec3b(b, g, r);
 				}
 			}
 
 			rtBufferUnmap(buffer);
-
+			
 			writer << img;
 		}
 	}
@@ -362,10 +369,10 @@ void Scene::resetObjects()
 
 void Scene::initObjects() 
 {
-	std::string filename = "D:\\tracer_output.avi";
+	std::string filename = "D:/tracer_output_" + SCENE_NAME + ".avi";
 	const int format = CV_FOURCC('M', 'P', '4', '2');
 
-	writer.open(filename, format, 10, cv::Size(WIDTH, HEIGHT), true);
+	writer.open(filename, format, 30, cv::Size(WIDTH, HEIGHT), true);
 	if (!writer.isOpened())
     {
         assert(false);

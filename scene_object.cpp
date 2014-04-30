@@ -356,6 +356,21 @@ void SceneObject::initGraphics(std::string obj_path, std::string mtl_path, std::
 			m_krefl = make_float3(0.3);
 			m_glossiness = 0.3;
 		}
+
+	} else if (SCENE_NAME == "bullet") {
+		if (obj_path.find("Droplet") != std::string::npos) {
+			m_alpha = make_float3(0.8);
+			m_krefl = make_float3(0.3);
+		} else if (obj_path.find("Ground") != std::string::npos) {
+			m_kd = make_float3(0.9);
+			m_krefl = make_float3(0.4);
+			m_glossiness = 0.2;
+		} else if (obj_path.find("LightSource") != std::string::npos) {
+			m_ke = make_float3(1);
+			m_emissive = true;
+			m_intensity = 5;
+			m_attenuation_coeff = 0.05;
+		}
 	}
 
 	mat["is_emissive"]->setInt(m_emissive);

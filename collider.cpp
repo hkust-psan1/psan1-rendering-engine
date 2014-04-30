@@ -4,7 +4,12 @@
 #include "collider.h"
 #include "scene_object.h"
 
-Collider::Collider() : m_mass(0) {
+float Collider::focus_x = 0;
+float Collider::focus_y = 0;
+float Collider::focus_z = 0;
+
+Collider::Collider(bool f) : m_mass(0) {
+	focus = f;
 }
 
 void Collider::initPhysics(std::string obj_path) {
@@ -146,7 +151,7 @@ void Collider::initPhysics(std::string obj_path) {
 
 void Collider::setInitialPosition(btVector3 pos) {
 	btTransform t;
-	t.setIdentity();
+	m_rigidBody->getMotionState()->getWorldTransform(t);
 	t.setOrigin(pos);
 	m_rigidBody->setWorldTransform(t);
 }
@@ -159,6 +164,13 @@ void Collider::step() {
 	float tx = origin.getX();
 	float ty = origin.getY();
 	float tz = origin.getZ();
+
+	if (focus)
+	{
+		focus_x = tx;
+		focus_y = ty;
+		focus_z = tz;
+	}
 
 	// printf("%.3f\n", ty);
 

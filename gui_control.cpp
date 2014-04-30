@@ -105,6 +105,14 @@ void GUIControl::recordButtonPressed() {
 	if (!scene->m_recording) {
 		recordButton->label("stop recording");
 		scene->m_recording = true;
+		std::string filename = "D:\\tracer_output.avi";
+		const int format = CV_FOURCC('D', 'I', 'V', 'X');
+
+		scene->writer.open(filename, format, 100, cv::Size(scene->WIDTH, scene->HEIGHT), true);
+		if (!scene->writer.isOpened())
+		{
+			assert(false);
+		}
 	} else {
 		recordButton->label("record");
 		scene->m_recording = false;

@@ -6,7 +6,7 @@
 class Ball : public Collider {
 public:
 	Ball() : Collider() {
-		m_mass = 6;
+		m_mass = 15;
 	}
 
 	virtual void initPhysics(std::string obj_path) {

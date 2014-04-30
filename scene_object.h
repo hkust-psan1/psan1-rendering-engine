@@ -1,7 +1,7 @@
 #ifndef SCENE_OBJECT_
 #define SCENE_OBJECT_
 
-#define SCENE_NAME std::string("bowling")
+#define SCENE_NAME std::string("bullet")
 
 #include <optixu/optixpp_namespace.h>
 #include <optixu/optixu_math_namespace.h>

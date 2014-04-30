@@ -1,4 +1,5 @@
 #include "obj_file_processor.h"
+#include "utils.h"
 
 const float pinRadius = 0.44; // from the obj file
 const float pinDistance = 0.44 * 12 / (4.75 / 2); // 12 inches distance with 4.75 inches diameter
@@ -27,6 +28,8 @@ std::vector<SceneObject*> ObjFileProcessor::processObject(std::string filename, 
 
 	int pin_index = 0;
 
+	int droplet_index = 0;
+
 	for (auto it = objMtlMap.begin(); it != objMtlMap.end(); it++) {
 		std::cout << "Processing object: " << it->first << std::endl;
 
@@ -51,25 +54,51 @@ std::vector<SceneObject*> ObjFileProcessor::processObject(std::string filename, 
 		*/
 
 		// used for the bowling scene
-		if (it->first.find("Pin") != std::string::npos) {
-			Collider* c = new Collider;
-			c->setMass(1);
-			c->initPhysics(targetDir + "../pin-phy.obj");
-			float3 pos = pinPositions[pin_index++];
-			c->setInitialPosition(btVector3(pos.x, pos.y, pos.z));
-			so->attachCollider(c);
-		} else if (it->first.find("MainFloor") != std::string::npos) {
-			Collider* c = new Collider;
-			c->setMass(0);
-			c->initPhysics(targetDir + it->first);
-			so->attachCollider(c);
-		} else if (it->first.find("BowlingBall") != std::string::npos) {
-			SphereCollider* sc = new SphereCollider;
-			sc->setMass(5);
-			sc->initPhysics(1);
-			sc->setInitialPosition(btVector3(-10, 2, 0));
-			sc->getRigidBody()->setLinearVelocity(btVector3(10, 0, 0.1));
-			so->attachCollider(sc);
+		if (SCENE_NAME == "bowling") {
+			if (it->first.find("Pin") != std::string::npos) {
+				Collider* c = new Collider;
+				c->setMass(1);
+				c->initPhysics(targetDir + "../pin-phy.obj");
+				float3 pos = pinPositions[pin_index++];
+				c->setInitialPosition(btVector3(pos.x, pos.y, pos.z));
+				so->attachCollider(c);
+			} else if (it->first.find("MainFloor") != std::string::npos) {
+				Collider* c = new Collider;
+				c->setMass(0);
+				c->initPhysics(targetDir + it->first);
+				so->attachCollider(c);
+			} else if (it->first.find("BowlingBall") != std::string::npos) {
+				SphereCollider* sc = new SphereCollider(true);
+				sc->setMass(5);
+				sc->initPhysics(1);
+				sc->setInitialPosition(btVector3(-10, 2, 0));
+				sc->getRigidBody()->setLinearVelocity(btVector3(20, 0, 0.15));
+				so->attachCollider(sc);
+			}
+
+		} else if (SCENE_NAME == "bullet") {
+			if (it->first.find("Droplet") != std::string::npos) {
+				SphereCollider* sc = new SphereCollider();
+				sc->setMass(1);
+				sc->initPhysics(1);
+				sc->setInitialPosition(btVector3(random1() / 20, 10 + 2.1 * droplet_index++, random1() / 20));
+				sc->getRigidBody()->setRestitution(0.6);
+				so->attachCollider(sc);
+				/*
+				CylinderCollider* cc = new CylinderCollider();
+				cc->initPhysics(0.3, 0.95);
+				cc->setInitialPosition(btVector3(0, 10, 0));
+				cc->setInitialRotation(btQuaternion());
+				so->attachCollider(cc);
+				cc->getRigidBody()->setRestitution(0.6);
+				*/
+			} else if (it->first.find("Ground") != std::string::npos) {
+				Collider* c = new Collider;
+				c->setMass(0);
+				c->initPhysics(targetDir + it->first);
+				c->getRigidBody()->setRestitution(0.4);
+				so->attachCollider(c);
+			}
 		}
 
 		// used for the throw scene
