@@ -5,7 +5,7 @@
 #include "collider.h"
 
 unsigned int Scene::WIDTH = 512u;
-unsigned int Scene::HEIGHT = 512u;
+unsigned int Scene::HEIGHT = 384u;
 
 Scene::Scene( const std::string& obj_path, int camera_type ) 
 	: SampleScene(), m_obj_path( obj_path ), m_frame_number( 0u ), 
@@ -20,6 +20,9 @@ Scene::Scene( const std::string& obj_path, int camera_type )
 	m_taking_snapshot = false;
 
 	samplesPerFrame = 20;
+
+	motionBlurImageNum = 15;
+	motionBlurImageIndex = 0;
 }
 
 void Scene::initScene( InitialCameraData& camera_data ) {
@@ -44,12 +47,90 @@ Buffer Scene::getOutputBuffer() {
 }
 
 void Scene::trace(const RayGenCameraData& camera_data) {
+	/*
 	if (m_new_frame) {
 		m_new_frame = false;
 	}
+	*/
+
 
 	/* Optix rendering settings */
 	if (m_camera_changed) {
+		
+		if (m_taking_snapshot) {
+			motionBlurImageIndex++;
+			if (motionBlurImageIndex == motionBlurImageNum) {
+				m_taking_snapshot = false;
+
+				GUIControl::snapShotButton->activate();
+
+				cv::Vec3i** output_data;
+
+				output_data = new cv::Vec3i*[HEIGHT];
+				for (int i = 0; i < HEIGHT; i++) {
+					output_data[i] = new cv::Vec3i[WIDTH];
+					for (int j = 0; j < WIDTH; j++) {
+						output_data[i][j] = cv::Vec3i(0, 0, 0);
+					}
+				}
+
+				for (int i = 0; i < HEIGHT; i++) {
+					for (int j = 0; j < WIDTH; j++) {
+						for (int img_index = 0; img_index < motionBlurImages.size(); img_index++) {
+							cv::Mat im = motionBlurImages[img_index];
+							cv::Vec3b rgb = im.at<cv::Vec3b>(i, j);
+
+							int r = static_cast<int>(rgb[0]);
+							int g = static_cast<int>(rgb[1]);
+							int b = static_cast<int>(rgb[2]);
+
+							output_data[i][j][0] += r;
+							output_data[i][j][1] += g;
+							output_data[i][j][2] += b;
+						}
+					}
+				}
+
+				cv::Mat output(HEIGHT, WIDTH, cv::DataType<cv::Vec3b>::type);
+				for (int i = 0; i < HEIGHT; i++) {
+					for (int j = 0; j < WIDTH; j++) {
+						output.at<cv::Vec3b>(i, j)[0] = (uchar)(output_data[i][j][0] / motionBlurImageNum);
+						output.at<cv::Vec3b>(i, j)[1] = (uchar)(output_data[i][j][1] / motionBlurImageNum);
+						output.at<cv::Vec3b>(i, j)[2] = (uchar)(output_data[i][j][2] / motionBlurImageNum);
+					}
+				}
+
+				cv::imshow("show", output);
+
+				motionBlurImages.clear();
+				motionBlurImageIndex = 0;
+
+				/*
+				cv::Mat blended(HEIGHT, WIDTH, CV_8UC3, cv::Scalar(0, 0, 0));
+
+				for (int i = 0; i < HEIGHT; i++) {
+					for (int j = 0; j < WIDTH; j++) {
+						int r = 0, g = 0, b = 0;
+						for (int k = 0; k < motionBlurImages.size(); k++) {
+							cv::Vec3b rgb = motionBlurImages[0].at<cv::Vec3b>(i, j);
+							r += static_cast<int>(rgb[0]);
+							g += static_cast<int>(rgb[1]);
+							b += static_cast<int>(rgb[2]);
+						}
+
+						int n = motionBlurImageNum;
+						blended.at<cv::Vec3b>(i, j)[0] = (uchar)(r / n);
+						blended.at<cv::Vec3b>(i, j)[1] = (uchar)(g / n);
+						blended.at<cv::Vec3b>(i, j)[2] = (uchar)(b / n);
+					}
+				}
+
+				cv::imshow("display", blended);
+				*/
+
+			}
+		}
+
 		m_frame_number = 0u;
 		m_camera_changed = false;
 	}
@@ -72,6 +153,7 @@ void Scene::trace(const RayGenCameraData& camera_data) {
 	m_context["glossy_on"]->setInt(GUIControl::glossyOn);
 	m_context["gi_on"]->setInt(GUIControl::giOn);
 
+	/*
 	m_context["jitter_grid_size"]->setFloat(1.f / m_jitter_grid_num);
 
 	float2 jitter_base = make_float2(
@@ -80,6 +162,7 @@ void Scene::trace(const RayGenCameraData& camera_data) {
 	m_context["jitter_base"]->setFloat(jitter_base);
 
 	m_context["focal_scale"]->setFloat(GUIControl::cameraFocalScale);
+	*/
 
 	Buffer buffer = m_context["output_buffer"]->getBuffer();
 	RTsize buffer_width, buffer_height;
@@ -89,6 +172,7 @@ void Scene::trace(const RayGenCameraData& camera_data) {
 		static_cast<unsigned int>(buffer_width),
 		static_cast<unsigned int>(buffer_height));
 
+	/*
 	m_dof_sample_num++;
 
 	bool dof_completed = true;
@@ -128,7 +212,8 @@ void Scene::trace(const RayGenCameraData& camera_data) {
 		m_taking_snapshot = false;
 		GUIControl::snapShotButton->activate();
 	}
-	
+	*/
+
 	if (m_frame_number >= samplesPerFrame) {
 		if (GUIControl::onAnimation) { // when animation is on, step simulation
 			world->stepSimulation(1 / 100.f, 10);
@@ -150,9 +235,9 @@ void Scene::trace(const RayGenCameraData& camera_data) {
 		// reset
 		m_camera_changed = true;
 
-		if (m_recording) {
+		if (m_recording || m_taking_snapshot) {
 			//write picture
-			cv::Mat img(HEIGHT, WIDTH, CV_8UC3, cv::Scalar(0,150, 0));
+			cv::Mat img(HEIGHT, WIDTH, CV_8UC3, cv::Scalar(0, 150, 0));
 			
 			std::vector<unsigned char> pix(WIDTH * HEIGHT * 3);
 
@@ -195,7 +280,21 @@ void Scene::trace(const RayGenCameraData& camera_data) {
 
 			rtBufferUnmap(buffer);
 			
-			writer << img;
+			if (m_recording) {
+				writer << img;
+			}
+			
+			if (m_taking_snapshot) {
+				printf("taking snapshot\n");
+				motionBlurImages.push_back(img.clone());
+			}
+
+			/*
+			delete imageData;
+			imageData = NULL;
+			*/
+
+			// img.release();
 		}
 	}
 }
@@ -268,7 +367,7 @@ void Scene::createContext( InitialCameraData& camera_data ) {
 	// Miss program.
 	ptx_path = ptxpath( "tracer", "gradientbg.cu" );
 
-	const char* filename = "D:/OptiX SDK 3.0.1/SDK - Copy/tracer/indoor.hdr";
+	const char* filename = "D:/OptiX SDK 3.0.1/SDK - Copy/tracer/envmaps/indoor.hdr";
 	m_context["envmap"]->setTextureSampler(loadTexture(m_context, filename, make_float3(0)));
 
 	// m_context->setMissProgram( 0, m_context->createProgramFromPTXFile( ptx_path, "miss" ) );
@@ -369,7 +468,7 @@ void Scene::resetObjects()
 
 void Scene::initObjects() 
 {
-	std::string filename = "D:/tracer_output_" + SCENE_NAME + ".avi";
+	std::string filename = "D:/tracer_output.avi";
 	const int format = CV_FOURCC('M', 'P', '4', '2');
 
 	writer.open(filename, format, 30, cv::Size(WIDTH, HEIGHT), true);

@@ -91,6 +91,10 @@ public:
 	int currSampleInFrame;
 
 	int samplesPerFrame;
+
+	std::vector<cv::Mat> motionBlurImages;
+	int motionBlurImageNum;
+	int motionBlurImageIndex;
 };
 
 #endif
