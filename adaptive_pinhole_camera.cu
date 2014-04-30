@@ -151,10 +151,12 @@ static __device__ __inline__ float3 jittered_trace( const uint2& index )
 
 RT_PROGRAM void pinhole_camera()
 {
+	/*
   if      ( frame_number == 0 ) coarseTrace( launch_index, 8u );
   else if ( frame_number == 1 ) coarseTrace( launch_index, 4u );
   else if ( frame_number == 2 ) coarseTrace( launch_index, 2u );
-  else if ( frame_number == 3 ) {
+  else */
+	if ( frame_number == 0 ) {
 
     float3 result = trace( make_float2(launch_index) );
     output_buffer[ launch_index ] = make_color( result );

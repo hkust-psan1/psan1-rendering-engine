@@ -1,7 +1,7 @@
 #include "scene.h"
 #include "gui_control.h"
 
-#define MAX_SAMPLES_PER_FRAME 1000
+#define MAX_SAMPLES_PER_FRAME 200
 
 Scene* GUIControl::scene = NULL;
 
@@ -237,7 +237,7 @@ void GUIControl::showControlDialog() {
 
 	samplesPerFrameSlider = new Fl_Value_Slider(0, 580, 300, 30);
 	samplesPerFrameSlider->type(FL_HOR_SLIDER);
-	samplesPerFrameSlider->bounds(3, MAX_SAMPLES_PER_FRAME);
+	samplesPerFrameSlider->bounds(1, MAX_SAMPLES_PER_FRAME);
 	samplesPerFrameSlider->value(20);
 	samplesPerFrameSlider->callback((Fl_Callback*) samplesPerFrameChanged);
 

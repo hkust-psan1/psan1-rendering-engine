@@ -53,11 +53,13 @@ void Scene::trace(const RayGenCameraData& camera_data) {
 	}
 	*/
 
+	float step_interval = 1 / 100.f;
 
 	/* Optix rendering settings */
 	if (m_camera_changed) {
-		
 		if (m_taking_snapshot) {
+			step_interval = 1 / 100.f;
+
 			motionBlurImageIndex++;
 			if (motionBlurImageIndex == motionBlurImageNum) {
 				m_taking_snapshot = false;
@@ -104,30 +106,6 @@ void Scene::trace(const RayGenCameraData& camera_data) {
 
 				motionBlurImages.clear();
 				motionBlurImageIndex = 0;
-
-				/*
-				cv::Mat blended(HEIGHT, WIDTH, CV_8UC3, cv::Scalar(0, 0, 0));
-
-				for (int i = 0; i < HEIGHT; i++) {
-					for (int j = 0; j < WIDTH; j++) {
-						int r = 0, g = 0, b = 0;
-						for (int k = 0; k < motionBlurImages.size(); k++) {
-							cv::Vec3b rgb = motionBlurImages[0].at<cv::Vec3b>(i, j);
-							r += static_cast<int>(rgb[0]);
-							g += static_cast<int>(rgb[1]);
-							b += static_cast<int>(rgb[2]);
-						}
-
-						int n = motionBlurImageNum;
-						blended.at<cv::Vec3b>(i, j)[0] = (uchar)(r / n);
-						blended.at<cv::Vec3b>(i, j)[1] = (uchar)(g / n);
-						blended.at<cv::Vec3b>(i, j)[2] = (uchar)(b / n);
-					}
-				}
-
-				cv::imshow("display", blended);
-				*/
-
 			}
 		}
 
@@ -141,11 +119,12 @@ void Scene::trace(const RayGenCameraData& camera_data) {
 	m_context["W"]->setFloat(camera_data.W);
 	m_context["frame_number"]->setUint(m_frame_number++);
 
-	if (GUIControl::onAnimation) 
+	/*if (GUIControl::onAnimation) 
 	{
 		float3 W = make_float3(Collider::focus_x , Collider::focus_y, Collider::focus_z) - camera_data.eye; 
+		W *= length(camera_data.W) / length(W); 
 		m_context["W"]->setFloat(W);
-	}
+	}*/
 
 	m_context["soft_shadow_on"]->setInt(GUIControl::softShadowOn);
 	m_context["aa_on"]->setInt(GUIControl::aaOn);
@@ -216,7 +195,7 @@ void Scene::trace(const RayGenCameraData& camera_data) {
 
 	if (m_frame_number >= samplesPerFrame) {
 		if (GUIControl::onAnimation) { // when animation is on, step simulation
-			world->stepSimulation(1 / 100.f, 10);
+			world->stepSimulation(step_interval, 10);
 
 			// re-position objects according to simulation result
 			for (int i = 0; i < sceneObjects.size(); i++) {
@@ -256,7 +235,7 @@ void Scene::trace(const RayGenCameraData& camera_data) {
 						int P = static_cast<int>((*src++) * 255.0f);
 						unsigned int Clamped = P < 0 ? 0 : P > 0xff ? 0xff : P;
 						*dst++ = static_cast<unsigned char>(Clamped);
-				}
+					}
 
 				// skip alpha
 				src++;
@@ -367,7 +346,7 @@ void Scene::createContext( InitialCameraData& camera_data ) {
 	// Miss program.
 	ptx_path = ptxpath( "tracer", "gradientbg.cu" );
 
-	const char* filename = "D:/OptiX SDK 3.0.1/SDK - Copy/tracer/envmaps/indoor.hdr";
+	const char* filename = "d:/optix sdk 3.0.1/sdk - copy/tracer/envmaps/indoor.hdr";
 	m_context["envmap"]->setTextureSampler(loadTexture(m_context, filename, make_float3(0)));
 
 	// m_context->setMissProgram( 0, m_context->createProgramFromPTXFile( ptx_path, "miss" ) );
@@ -468,15 +447,6 @@ void Scene::resetObjects()
 
 void Scene::initObjects() 
 {
-	std::string filename = "D:/tracer_output.avi";
-	const int format = CV_FOURCC('M', 'P', '4', '2');
-
-	writer.open(filename, format, 30, cv::Size(WIDTH, HEIGHT), true);
-	if (!writer.isOpened())
-    {
-        assert(false);
-    }
-
 	std::string prog_path = ptxpath("tracer", "triangle_mesh_iterative.cu");
 	std::string mat_path = ptxpath("tracer", "phong.cu");
 

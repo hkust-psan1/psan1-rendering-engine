@@ -483,6 +483,14 @@ void SceneObject::initGraphics(std::string obj_path, std::string mtl_path, std::
 			m_intensity = 5;
 			m_attenuation_coeff = 0.05;
 		}
+	} else if (SCENE_NAME == "concave") {
+		if (obj_path.find("LightSource") != std::string::npos) {
+			m_emissive = true;
+			m_ke = make_float3(1);
+			m_intensity = 3;
+		} else if (obj_path.find("Torus") != std::string::npos) {
+			m_krefl = make_float3(0.8);
+		}
 	}
 
 	mat["is_emissive"]->setInt(m_emissive);

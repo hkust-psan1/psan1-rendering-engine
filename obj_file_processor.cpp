@@ -74,7 +74,7 @@ std::vector<SceneObject*> ObjFileProcessor::processObject(std::string filename, 
 				sc->setMass(10);
 				sc->initPhysics(1);
 				sc->setInitialPosition(btVector3(-10, 2, 0));
-				sc->getRigidBody()->setLinearVelocity(btVector3(20, 0, 0.15));
+				sc->getRigidBody()->setLinearVelocity(btVector3(40, 0, 0.15));
 				sc->getRigidBody()->setRestitution(0.5);
 				so->attachCollider(sc);
 			}
@@ -84,7 +84,7 @@ std::vector<SceneObject*> ObjFileProcessor::processObject(std::string filename, 
 				SphereCollider* sc = new SphereCollider();
 				sc->setMass(1);
 				sc->initPhysics(1);
-				sc->setInitialPosition(btVector3(random1() / 10, 10 + 3 * droplet_index++, random1() / 10));
+				sc->setInitialPosition(btVector3(random1() / 5, 10 + 3 * droplet_index++, random1() / 5));
 				sc->getRigidBody()->setRestitution(0.6);
 				so->attachCollider(sc);
 				/*
@@ -100,6 +100,29 @@ std::vector<SceneObject*> ObjFileProcessor::processObject(std::string filename, 
 				c->setMass(0);
 				c->initPhysics(targetDir + it->first);
 				c->getRigidBody()->setRestitution(0.6);
+				so->attachCollider(c);
+			}
+
+		} else if (SCENE_NAME == "concave") {
+			if (it->first.find("Torus1") != std::string::npos) {
+				Collider* c = new Collider;
+				c->setMass(0);
+				c->initPhysics(targetDir + it->first);
+				c->getRigidBody()->setRestitution(0.6);
+				so->attachCollider(c);
+			} else if (it->first.find("Torus2") != std::string::npos) {
+				Collider* c = new Collider;
+				c->setMass(1);
+				c->initPhysics(targetDir + it->first);
+				c->getRigidBody()->setRestitution(0.6);
+				c->setInitialPosition(btVector3(0, -1, 0));
+				so->attachCollider(c);
+			} else if (it->first.find("Torus3") != std::string::npos) {
+				Collider* c = new Collider;
+				c->setMass(1);
+				c->initPhysics(targetDir + it->first);
+				c->getRigidBody()->setRestitution(0.6);
+				c->setInitialPosition(btVector3(0, -2, 0));
 				so->attachCollider(c);
 			}
 		}
